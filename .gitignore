@@ -15,3 +15,14 @@ project/plugins/project/
 # Scala-IDE specific
 .scala_dependencies
 .worksheet
+
+# IntelliJ IDEA specific
+.idea/
+.idea_modules/
+
+# Mac specific
+.DS_Store
+
+# Redis database
+*.rdb
+
