@@ -1,0 +1,17 @@
+---
+language: scala
+
+jdk: oraclejdk7
+
+scala: 2.11.6
+
+matrix:
+  include:
+    # Base: test with mock
+
+    # test with real redis-server
+    - scala: 2.11.6
+      env: USE_REAL_REDIS="yes"
+      services:
+        - redis-server
+
