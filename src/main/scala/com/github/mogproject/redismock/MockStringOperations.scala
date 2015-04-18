@@ -163,7 +163,7 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
     currentDB.synchronized {
       val a = getRawOrEmpty(key)
       val b = format(value)
-      val c = a.take(offset) ++ Array.fill(math.max(0, offset - a.size))(0.toByte) ++ b ++ a.drop(offset + b.length)
+      val c = a.take(offset) ++ Array.fill(math.max(0, offset - a.length))(0.toByte) ++ b ++ a.drop(offset + b.length)
       set(key, c)
       Some(c.length)
     }
@@ -173,7 +173,7 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
   // start and end (both are inclusive).
   override def getrange[A](key: Any, start: Int, end: Int)(implicit format: Format, parse: Parse[A]): Option[A] = {
     getRaw(key).map { x =>
-      def f(n: Int): Int = if (n < 0) x.size + n else n
+      def f(n: Int): Int = if (n < 0) x.length + n else n
       parse(x.slice(f(start), f(end) + 1))
     }
   }
@@ -181,7 +181,7 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
   // STRLEN key
   // gets the length of the value associated with the key
   override def strlen(key: Any)(implicit format: Format): Option[Long] =
-    Some(getRaw(key).map(_.size.toLong).getOrElse(0L))
+    Some(getRaw(key).map(_.length.toLong).getOrElse(0L))
 
   // APPEND KEY (key, value)
   // appends the key value with the specified value.
@@ -198,7 +198,7 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
     val (n, m) = (offset / 8, offset % 8)
 
     getRaw(key).map { v =>
-      if (v.size < n)
+      if (v.length < n)
         0
       else
         (byte2Int(v(n)) >> m) & 1
@@ -214,7 +214,7 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
     val (n, m) = (offset / 8, offset % 8)
 
     val v = getRawOrEmpty(key)
-    val u = v.clone() ++ Array.fill(n + 1 - v.size)(0.toByte)
+    val u = v.clone() ++ Array.fill(n + 1 - v.length)(0.toByte)
     val old = (byte2Int(u(n)) >> m) & 1
     u(n) = (byte2Int(u(n)) & (0xff ^ (1 << m)) | (x << m)).toByte
     set(key, u)
