@@ -1,7 +1,6 @@
 package com.github.mogproject.redismock
 
 import com.redis.Seconds
-import org.scalacheck.Gen
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSpec, Matchers}
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import scala.collection.parallel.ForkJoinTaskSupport
@@ -437,12 +436,12 @@ with GeneratorDrivenPropertyChecks {
       r.set("key1", Array[Byte](1, 2, 3, 4, 5, 0, 127, -1, -10, -128))
       r.set("key2", Array[Byte](1, 3))
 
-      r.bitop("AND", "destKey", "key1", "nonExist")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](0, 0, 0, 0, 0, 0, 0, 0, 0, 0)))
-      r.bitop("OR", "destKey", "key1", "nonExist")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](1, 2, 3, 4, 5, 0, 127, -1, -10, -128)))
-      r.bitop("XOR", "destKey", "key1", "nonExist")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](1, 2, 3, 4, 5, 0, 127, -1, -10, -128)))
+      r.bitop("AND", "destKey", "key1", "key2")
+      r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](1, 2, 0, 0, 0, 0, 0, 0, 0, 0)))
+      r.bitop("OR", "destKey", "key1", "key2")
+      r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](1, 3, 3, 4, 5, 0, 127, -1, -10, -128)))
+      r.bitop("XOR", "destKey", "key1", "key2")
+      r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](0, 1, 3, 4, 5, 0, 127, -1, -10, -128)))
     }
 
     it("should get back the original string after doube NOT") {
@@ -471,7 +470,7 @@ with GeneratorDrivenPropertyChecks {
         
         r.bitop("XOR", "destXor1", "key1", "key2", "key3")
         r.bitop("XOR", "destXor2", "key3", "key1", "key2")
-        r.get("destXo1").map(_.toSeq) should equal(r.get("destXo2").map(_.toSeq))
+        r.get("destXor1").map(_.toSeq) should equal(r.get("destXor2").map(_.toSeq))
       }
     }
   }
