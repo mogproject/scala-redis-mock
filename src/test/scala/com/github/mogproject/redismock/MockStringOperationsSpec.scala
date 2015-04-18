@@ -16,7 +16,12 @@ with GeneratorDrivenPropertyChecks {
   // to test with real Redis
   val useRealRedis = sys.env.get("USE_REAL_REDIS").exists(_.toLowerCase == "yes")
 
-  val r = if (useRealRedis) new RedisClient("localhost", 6379) else new MockRedisClient("localhost", 6379)
+  val r = if (useRealRedis) {
+    println("[INFO] Connecting to REAL redis-server...")
+    new RedisClient("localhost", 6379)
+  } else {
+    new MockRedisClient("localhost", 6379)
+  }
 
   def doParallel[A](n: Int)(f: => A) = {
     val xs = if (useRealRedis) {
