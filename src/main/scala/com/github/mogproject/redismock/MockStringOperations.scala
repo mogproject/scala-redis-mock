@@ -30,10 +30,11 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
   private[this] def byte2Int(b: Byte): Int = if (b < 0) 256 + b else b
 
   /** Return resized n-array padding with zero */
-  private[this] def resizeByteArray(a: Array[Byte], n: Int): Array[Byte] = a.take(n) ++ Array.fill(n - a.size)(0.toByte)
+  private[this] def resizeByteArray(a: Array[Byte], n: Int): Array[Byte] =
+    a.take(n) ++ Array.fill(n - a.length)(0.toByte)
 
   private[this] def bitBinOp(op: (Byte, Byte) => Int)(a: Array[Byte], b: Array[Byte]): Array[Byte] = {
-    val n = math.max(a.size, b.size)
+    val n = math.max(a.length, b.length)
     resizeByteArray(a, n) zip resizeByteArray(b, n) map { case (x, y) => op(x, y).toByte}
   }
 
@@ -162,9 +163,9 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
     currentDB.synchronized {
       val a = getRawOrEmpty(key)
       val b = format(value)
-      val c = a.take(offset) ++ Array.fill(math.max(0, offset - a.size))(0.toByte) ++ b ++ a.drop(offset + b.size)
+      val c = a.take(offset) ++ Array.fill(math.max(0, offset - a.size))(0.toByte) ++ b ++ a.drop(offset + b.length)
       set(key, c)
-      Some(c.size)
+      Some(c.length)
     }
 
   // GETRANGE key start end
@@ -242,7 +243,11 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
         case "XOR" => srcKeys.view.map(getRawOrEmpty).reduceLeft(bitBinOp(_ ^ _))
         case "NOT" => getRawOrEmpty(srcKeys(0)).map(b => (~b).toByte)
       }
-      set(destKey, result)
-      Some(result.size)
+      if (result.isEmpty) {
+        del(destKey)
+      } else {
+        set(destKey, result)
+      }
+      Some(result.length)
     }
 }

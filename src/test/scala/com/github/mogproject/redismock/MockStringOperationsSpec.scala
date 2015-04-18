@@ -1,7 +1,7 @@
 package com.github.mogproject.redismock
 
 import com.redis.{RedisClient, Seconds}
-import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSpec, Matchers}
+import org.scalatest._
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import scala.collection.parallel.ForkJoinTaskSupport
 
@@ -11,8 +11,10 @@ with BeforeAndAfterEach
 with BeforeAndAfterAll
 with GeneratorDrivenPropertyChecks {
 
-  // set true when testing with real Redis
-  val useRealRedis = true
+  // set environment variable
+  // USE_REAL_REDIS=yes
+  // to test with real Redis
+  val useRealRedis = sys.env.get("USE_REAL_REDIS").exists(_.toLowerCase == "yes")
 
   val r = if (useRealRedis) new RedisClient("localhost", 6379) else new MockRedisClient("localhost", 6379)
 
@@ -412,31 +414,31 @@ with GeneratorDrivenPropertyChecks {
     it("should work with non-existence keys") {
       import com.redis.serialization.Parse.Implicits.parseByteArray
 
-      r.set("key1", Array[Byte](1, 2, 3, 4, 5, 0, 127, -1, -10, -128))
+      r.set("key1", Array[Byte](1, 2, 3, 4, 5, 0, 127, -1, -10, -128)) shouldBe true
 
-      r.bitop("NOT", "destKey", "notExist")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq.empty[Byte]))
+      r.bitop("NOT", "destKey", "notExist") shouldBe Some(0)
+      r.get("destKey").map(_.toSeq) shouldBe None
 
-      r.bitop("AND", "destKey", "notExist1", "notExist2")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq.empty[Byte]))
-      r.bitop("AND", "destKey", "notExist", "key1")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](0, 0, 0, 0, 0, 0, 0, 0, 0, 0)))
-      r.bitop("AND", "destKey", "key1", "notExist")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](0, 0, 0, 0, 0, 0, 0, 0, 0, 0)))
+      r.bitop("AND", "destKey", "notExist1", "notExist2") shouldBe Some(0)
+      r.get("destKey").map(_.toSeq) shouldBe None
+      r.bitop("AND", "destKey", "notExist", "key1") shouldBe Some(10)
+      r.get("destKey").map(_.toSeq) shouldBe Some(Seq[Byte](0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+      r.bitop("AND", "destKey", "key1", "notExist") shouldBe Some(10)
+      r.get("destKey").map(_.toSeq) shouldBe Some(Seq[Byte](0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
 
-      r.bitop("OR", "destKey", "notExist1", "notExist2")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq.empty[Byte]))
-      r.bitop("OR", "destKey", "notExist", "key1")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](1, 2, 3, 4, 5, 0, 127, -1, -10, -128)))
-      r.bitop("OR", "destKey", "key1", "notExist")
+      r.bitop("OR", "destKey", "notExist1", "notExist2") shouldBe Some(0)
+      r.get("destKey").map(_.toSeq) shouldBe None
+      r.bitop("OR", "destKey", "notExist", "key1") shouldBe Some(10)
+      r.get("destKey").map(_.toSeq) shouldBe Some(Seq[Byte](1, 2, 3, 4, 5, 0, 127, -1, -10, -128))
+      r.bitop("OR", "destKey", "key1", "notExist") shouldBe Some(10)
       r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](1, 2, 3, 4, 5, 0, 127, -1, -10, -128)))
 
-      r.bitop("XOR", "destKey", "notExist1", "notExist2")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq.empty[Byte]))
-      r.bitop("XOR", "destKey", "notExist", "key1")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](1, 2, 3, 4, 5, 0, 127, -1, -10, -128)))
-      r.bitop("XOR", "destKey", "key1", "notExist")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](1, 2, 3, 4, 5, 0, 127, -1, -10, -128)))
+      r.bitop("XOR", "destKey", "notExist1", "notExist2") shouldBe Some(0)
+      r.get("destKey").map(_.toSeq) shouldBe None
+      r.bitop("XOR", "destKey", "notExist", "key1") shouldBe Some(10)
+      r.get("destKey").map(_.toSeq) shouldBe Some(Seq[Byte](1, 2, 3, 4, 5, 0, 127, -1, -10, -128))
+      r.bitop("XOR", "destKey", "key1", "notExist") shouldBe Some(10)
+      r.get("destKey").map(_.toSeq) shouldBe Some(Seq[Byte](1, 2, 3, 4, 5, 0, 127, -1, -10, -128))
     }
     it("should work with arrays with different length") {
       import com.redis.serialization.Parse.Implicits.parseByteArray
@@ -444,40 +446,41 @@ with GeneratorDrivenPropertyChecks {
       r.set("key1", Array[Byte](1, 2, 3, 4, 5, 0, 127, -1, -10, -128))
       r.set("key2", Array[Byte](1, 3))
 
-      r.bitop("AND", "destKey", "key1", "key2")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](1, 2, 0, 0, 0, 0, 0, 0, 0, 0)))
-      r.bitop("OR", "destKey", "key1", "key2")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](1, 3, 3, 4, 5, 0, 127, -1, -10, -128)))
-      r.bitop("XOR", "destKey", "key1", "key2")
-      r.get("destKey").map(_.toSeq) should equal(Some(Seq[Byte](0, 1, 3, 4, 5, 0, 127, -1, -10, -128)))
+      r.bitop("AND", "destKey", "key1", "key2") shouldBe Some(10)
+      r.get("destKey").map(_.toSeq) shouldBe Some(Seq[Byte](1, 2, 0, 0, 0, 0, 0, 0, 0, 0))
+      r.bitop("OR", "destKey", "key1", "key2") shouldBe Some(10)
+      r.get("destKey").map(_.toSeq) shouldBe Some(Seq[Byte](1, 3, 3, 4, 5, 0, 127, -1, -10, -128))
+      r.bitop("XOR", "destKey", "key1", "key2") shouldBe Some(10)
+      r.get("destKey").map(_.toSeq) shouldBe Some(Seq[Byte](0, 1, 3, 4, 5, 0, 127, -1, -10, -128))
     }
 
-    it("should get back the original string after doube NOT") {
+    it("should get back the original string after double NOT") {
       import com.redis.serialization.Parse.Implicits.parseByteArray
-      forAll { xs: Array[Byte] =>
-        r.set("key1", xs)
-        r.bitop("NOT", "key2", "key1")
-        r.bitop("NOT", "key3", "key2")
-        r.get("key3").map(_.toSeq) should equal(Some(xs.toSeq))
-      }
+      forAll { xs: Seq[Byte] => whenever(xs.nonEmpty) {
+        r.set("key1", xs.toArray) shouldBe true
+        r.bitop("NOT", "key2", "key1") shouldBe Some(xs.length)
+        r.bitop("NOT", "key3", "key2") shouldBe Some(xs.length)
+        r.get("key3").map(_.toSeq) shouldBe Some(xs)
+      }}
     }
     it("should not care order with AND, OR, XOR") {
       import com.redis.serialization.Parse.Implicits.parseByteArray
-      forAll { (xs: Array[Byte], ys: Array[Byte], zs: Array[Byte]) =>
-        r.set("key1", xs)
-        r.set("key2", ys)
-        r.set("key3", zs)
+      forAll { (xs: Seq[Byte], ys: Seq[Byte], zs: Seq[Byte]) =>
+        val n = math.max(math.max(xs.length, ys.length), zs.length)
+        r.set("key1", xs.toArray) shouldBe true
+        r.set("key2", ys.toArray) shouldBe true
+        r.set("key3", zs.toArray) shouldBe true
 
-        r.bitop("AND", "destAnd1", "key1", "key2", "key3")
-        r.bitop("AND", "destAnd2", "key3", "key1", "key2")
+        r.bitop("AND", "destAnd1", "key1", "key2", "key3") shouldBe Some(n)
+        r.bitop("AND", "destAnd2", "key3", "key1", "key2") shouldBe Some(n)
         r.get("destAnd1").map(_.toSeq) should equal(r.get("destAnd2").map(_.toSeq))
 
-        r.bitop("OR", "destOr1", "key1", "key2", "key3")
-        r.bitop("OR", "destOr2", "key3", "key1", "key2")
+        r.bitop("OR", "destOr1", "key1", "key2", "key3") shouldBe Some(n)
+        r.bitop("OR", "destOr2", "key3", "key1", "key2") shouldBe Some(n)
         r.get("destOr1").map(_.toSeq) should equal(r.get("destOr2").map(_.toSeq))
         
-        r.bitop("XOR", "destXor1", "key1", "key2", "key3")
-        r.bitop("XOR", "destXor2", "key3", "key1", "key2")
+        r.bitop("XOR", "destXor1", "key1", "key2", "key3") shouldBe Some(n)
+        r.bitop("XOR", "destXor2", "key3", "key1", "key2") shouldBe Some(n)
         r.get("destXor1").map(_.toSeq) should equal(r.get("destXor2").map(_.toSeq))
       }
     }
