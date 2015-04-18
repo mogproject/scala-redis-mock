@@ -7,6 +7,7 @@ Pure scala mock for [scala-redis](https://github.com/debasishg/scala-redis)
 
 > **Note**: This library is under development!
 
+
 ## Try it out (without real Redis)!
 
 ```
@@ -18,6 +19,28 @@ res0: Boolean = true
 scala> r.get("foo")
 res1: Option[String] = Some(bar)
 ```
+
+
+## Testing
+
+- With mock
+
+```
+sbt test
+```
+
+- With real redis-server
+
+You need to install Redis in the local host.
+
+```
+redis-server &
+USE_REAL_REDIS=yes sbt test
+
+redis-cli
+> shutdown
+```
+
 
 ## To be implemented
 
