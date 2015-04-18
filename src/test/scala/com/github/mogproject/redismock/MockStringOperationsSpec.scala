@@ -1,6 +1,6 @@
 package com.github.mogproject.redismock
 
-import com.redis.Seconds
+import com.redis.{RedisClient, Seconds}
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSpec, Matchers}
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import scala.collection.parallel.ForkJoinTaskSupport
@@ -11,12 +11,20 @@ with BeforeAndAfterEach
 with BeforeAndAfterAll
 with GeneratorDrivenPropertyChecks {
 
-  val r = new MockRedisClient("localhost", 6379)
+  // set true when testing with real Redis
+  val useRealRedis = true
+
+  val r = if (useRealRedis) new RedisClient("localhost", 6379) else new MockRedisClient("localhost", 6379)
 
   def doParallel[A](n: Int)(f: => A) = {
-    val p = (1 to n).par
-    p.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(8))
-    p.foreach(_ => f)
+    val xs = if (useRealRedis) {
+      1 to n
+    } else {
+      val p = (1 to n).par
+      p.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(8))
+      p
+    }
+    xs.foreach(_ => f)
   }
 
   override def beforeEach = {
