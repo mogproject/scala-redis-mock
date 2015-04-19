@@ -5,6 +5,10 @@ jdk: oraclejdk7
 
 scala: 2.11.6
 
+script: "sbt clean coverage test"
+
+after_success: "sbt coveralls"
+
 matrix:
   include:
     # Base: test with mock

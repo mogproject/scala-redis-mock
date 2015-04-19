@@ -1,5 +1,6 @@
 [![Stories in Ready](https://badge.waffle.io/mogproject/scala-redis-mock.png?label=ready&title=Ready)](https://waffle.io/mogproject/scala-redis-mock)
 [![Build Status](https://travis-ci.org/mogproject/scala-redis-mock.svg?branch=master)](https://travis-ci.org/mogproject/scala-redis-mock)
+[![Coverage Status](https://coveralls.io/repos/mogproject/scala-redis-mock/badge.svg)](https://coveralls.io/r/mogproject/scala-redis-mock)
 [![License](https://img.shields.io/badge/license-Apache2-brightgreen.svg)](http://choosealicense.com/licenses/apache-2.0/)
 
 # scala-redis-mock
