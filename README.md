@@ -37,8 +37,7 @@ You need to install Redis in the local host.
 redis-server &
 USE_REAL_REDIS=yes sbt test
 
-redis-cli
-> shutdown
+redis-cli shutdown
 ```
 
 
