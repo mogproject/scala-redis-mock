@@ -50,7 +50,7 @@ redis-cli shutdown
 |:-:|:-:|:-:|:--|
 |[x]|[ ]|[ ]|Keys|
 |[x]|[x]|[ ]|Strings|
-|[ ]|[ ]|[ ]|Lists|
+|[x]|[x]|[ ]|Lists|
 |[ ]|[ ]|[ ]|Sets|
 |[ ]|[ ]|[ ]|Sorted Sets|
 |[ ]|[ ]|[ ]|Hashes|

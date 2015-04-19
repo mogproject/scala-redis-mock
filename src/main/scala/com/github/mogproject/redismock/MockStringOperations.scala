@@ -1,42 +1,47 @@
 package com.github.mogproject.redismock
 
-import com.github.mogproject.redismock.entity.{StringValue, Key}
+import com.github.mogproject.redismock.entity.{Bytes, StringValue, Key, STRING}
 import com.github.mogproject.redismock.storage.Storage
 import com.redis._
 import com.redis.serialization.Format
 import com.redis.serialization.Parse
 
-import scala.Exception
 import scala.util.Try
 
 trait MockStringOperations extends StringOperations with MockOperations with Storage {
   self: Redis =>
 
   //
-  // helper functinos
+  // helper functions
   //
 
-  private[this] def set(key: Any, value: Any, ttl: Option[Long])(implicit format: Format): Boolean = {
-    currentDB.update(Key(format.apply(key)), StringValue(format.apply(value)), ttl)
+  private def setRaw(key: Any, value: Bytes, ttl: Option[Long])(implicit format: Format): Boolean = {
+    currentDB.update(Key(key), StringValue(value), ttl)
     true
   }
 
-  private[this] def getRaw(key: Any)(implicit format: Format): Option[StringValue#DataType] =
-    currentDB.get(Key(format.apply(key))).map(_.asStringValue)
+  //  private[this] def setRaw(key: Any, value: Any, ttl: Option[Long])(implicit format: Format): Boolean = {
+  //    currentDB.update(Key(key), StringValue(value), ttl)
+  //    true
+  //  }
 
-  private[this] def getRawOrEmpty(key: Any)(implicit format: Format): StringValue#DataType =
-    getRaw(key).getOrElse(Array.empty[Byte])
+  private[this] def getRaw(key: Any)(implicit format: Format): Option[Bytes] =
+    currentDB.get(Key(format.apply(key))).map(_.as(STRING))
+
+  private[this] def getRawOrEmpty(key: Any)(implicit format: Format): Bytes = getRaw(key).getOrElse(Bytes.empty)
 
   // operations for Byte
-  private[this] def byte2Int(b: Byte): Int = if (b < 0) 256 + b else b
+
+  /** Convert Byte object to unsigned Int */
+  private[this] def b2ui(b: Byte): Int = (256 + b) % 256
 
   /** Return resized n-array padding with zero */
-  private[this] def resizeByteArray(a: Array[Byte], n: Int): Array[Byte] =
-    a.take(n) ++ Array.fill(n - a.length)(0.toByte)
+  private[this] def resizeByteArray(a: Seq[Byte], n: Int): Seq[Byte] =
+    a.take(n) ++ Array.fill[Byte](n - a.length)(0)
 
-  private[this] def bitBinOp(op: (Byte, Byte) => Int)(a: Array[Byte], b: Array[Byte]): Array[Byte] = {
+  def bitBinOp(op: (Int, Int) => Int)(a: Seq[Byte], b: Seq[Byte]): Seq[Byte] = {
     val n = math.max(a.length, b.length)
-    resizeByteArray(a, n) zip resizeByteArray(b, n) map { case (x, y) => op(x, y).toByte}
+    resizeByteArray(a, n) zip resizeByteArray(b, n) map { case (x, y) => op(x, y).toByte }
   }
 
   /** Count number of 1-bit */
@@ -52,7 +57,7 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
   // SET KEY (key, value)
   // sets the key with the specified value.
   override def set(key: Any, value: Any)(implicit format: Format): Boolean = {
-    set(key, value, None)
+    setRaw(key, Bytes(value), None)
   }
 
   // SET key value [EX seconds] [PX milliseconds] [NX|XX]
@@ -82,7 +87,7 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
         case Seconds(v) => v * 1000L
         case Millis(v) => v
       }
-      set(key, value, Some(t))
+      setRaw(key, Bytes(value), Some(t))
     } else {
       false
     }
@@ -90,9 +95,7 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
 
   // GET (key)
   // gets the value for the specified key.
-  override def get[A](key: Any)(implicit format: Format, parse: Parse[A]): Option[A] = {
-    currentDB.get(Key(format.apply(key))).map(x => parse(x.asStringValue))
-  }
+  override def get[A](key: Any)(implicit format: Format, parse: Parse[A]): Option[A] = getRaw(key).map(_.parse(parse))
 
   // GETSET (key, value)
   // is an atomic set this value and return the old value command.
@@ -111,7 +114,7 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
     psetex(key, expiry * 1000L, value)
 
   override def psetex(key: Any, expiryInMillis: Long, value: Any)(implicit format: Format): Boolean =
-    set(key, value, Some(expiryInMillis))
+    setRaw(key, Bytes(value), Some(expiryInMillis))
 
   // INCR (key)
   // increments the specified key by 1
@@ -174,8 +177,8 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
   // start and end (both are inclusive).
   override def getrange[A](key: Any, start: Int, end: Int)(implicit format: Format, parse: Parse[A]): Option[A] = {
     getRaw(key).map { x =>
-      def f(n: Int): Int = if (n < 0) x.length + n else n
-      parse(x.slice(f(start), f(end) + 1))
+      def f(n: Int): Int = if (n < 0) x.value.length + n else n
+      x.slice(f(start), f(end) + 1).parse(parse)
     }
   }
 
@@ -196,13 +199,13 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
   // GETBIT key offset
   // Returns the bit value at offset in the string value stored at key
   override def getbit(key: Any, offset: Int)(implicit format: Format): Option[Int] = {
-    val (n, m) = (offset / 8, offset % 8)
+    val (n, m) = (offset / 8, 7 - offset % 8)
 
     getRaw(key).map { v =>
       if (v.length < n)
         0
       else
-        (byte2Int(v(n)) >> m) & 1
+        (b2ui(v(n)) >> m) & 1
     }
   }
 
@@ -213,20 +216,19 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
       case x: Int if x == 0 || x == 1 => x
       case _ => throw new Exception("ERR bit is not an integer or out of range")
     }
-    val (n, m) = (offset / 8, offset % 8)
+    val (n, m) = (offset / 8, 7 - offset % 8)
 
     val v = getRawOrEmpty(key)
-    val u = v.clone() ++ Array.fill(n + 1 - v.length)(0.toByte)
-    val old = (byte2Int(u(n)) >> m) & 1
-    u(n) = (byte2Int(u(n)) & (0xff ^ (1 << m)) | (x << m)).toByte
-    set(key, u)
+    val old = (b2ui(v.getOrElse(n)) >> m) & 1
+    val w: Bytes = v.updated(n, (b2ui(v.getOrElse(n)) & (0xff ^ (1 << m)) | (x << m)).toByte, 0)
+    setRaw(key, w, None)
     Some(old)
   }
 
   // BITCOUNT key range
   // Count the number of set bits in the given key within the optional range
   override def bitcount(key: Any, range: Option[(Int, Int)] = None)(implicit format: Format): Option[Int] =
-    getRaw(key).map(_.map(popByte).sum)
+    getRaw(key).map(_.value.map(popByte).sum)
 
   // BITOP op destKey srcKey...
   // Perform a bitwise operation between multiple keys (containing string values) and store the result in the destination key.
@@ -239,16 +241,16 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
   // BITOP NOT destkey srckey
   override def bitop(op: String, destKey: Any, srcKeys: Any*)(implicit format: Format): Option[Int] =
     currentDB.synchronized {
-      val result: Array[Byte] = op match {
-        case "AND" => srcKeys.view.map(getRawOrEmpty).reduceLeft(bitBinOp(_ & _))
-        case "OR" => srcKeys.view.map(getRawOrEmpty).reduceLeft(bitBinOp(_ | _))
-        case "XOR" => srcKeys.view.map(getRawOrEmpty).reduceLeft(bitBinOp(_ ^ _))
-        case "NOT" => getRawOrEmpty(srcKeys(0)).map(b => (~b).toByte)
+      val result: Seq[Byte] = op.toUpperCase match {
+        case "AND" => srcKeys.view.map(getRawOrEmpty(_).value).reduceLeft(bitBinOp(_ & _))
+        case "OR" => srcKeys.view.map(getRawOrEmpty(_).value).reduceLeft(bitBinOp(_ | _))
+        case "XOR" => srcKeys.view.map(getRawOrEmpty(_).value).reduceLeft(bitBinOp(_ ^ _))
+        case "NOT" => getRawOrEmpty(srcKeys(0)).value.map(x => (~x).toByte)
       }
       if (result.isEmpty) {
         del(destKey)
       } else {
-        set(destKey, result)
+        setRaw(destKey, Bytes(result), None)
       }
       Some(result.length)
     }
