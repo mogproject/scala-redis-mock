@@ -10,7 +10,7 @@ object Build extends Build {
     .settings(
       libraryDependencies ++=
         compile(redisClient) ++
-          test(scalatest, scalacheck)
+          test(logback, scalatest, scalacheck)
     )
     .settings(
       initialCommands in console :=

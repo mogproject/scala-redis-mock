@@ -23,6 +23,8 @@ object Dependencies {
   // Libraries
   val redisClient = "net.debasishg" %% "redisclient" % redisClientVersion
 
+  val logback = "ch.qos.logback" % "logback-classic" % "1.1.3"
+
   val scalatest = "org.scalatest" %% "scalatest" % "2.2.4"
   val scalacheck = "org.scalacheck" %% "scalacheck" % "1.12.2"
 }
