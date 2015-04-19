@@ -9,7 +9,7 @@ class MockRedisClient(override val host: String,
                       override val secret: Option[Any] = None,
                       override val timeout: Int = 0
                        ) extends RedisClient with MockIO with MockRedisCommand {
-
+  connect
 }
 
 trait MockRedisCommand extends Redis with MockOperations
