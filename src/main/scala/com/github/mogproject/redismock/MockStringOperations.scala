@@ -6,6 +6,7 @@ import com.redis._
 import com.redis.serialization.Format
 import com.redis.serialization.Parse
 
+import scala.Exception
 import scala.util.Try
 
 trait MockStringOperations extends StringOperations with MockOperations with Storage {
@@ -210,6 +211,7 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
   override def setbit(key: Any, offset: Int, value: Any)(implicit format: Format): Option[Int] = {
     val x = value match {
       case x: Int if x == 0 || x == 1 => x
+      case _ => throw new Exception("ERR bit is not an integer or out of range")
     }
     val (n, m) = (offset / 8, offset % 8)
 

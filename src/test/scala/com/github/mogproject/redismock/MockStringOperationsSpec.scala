@@ -23,7 +23,7 @@ with GeneratorDrivenPropertyChecks {
     new MockRedisClient("localhost", 6379)
   }
 
-  def doParallel[A](n: Int)(f: => A) = {
+  private def doParallel[A](n: Int)(f: => A) = {
     val xs = if (useRealRedis) {
       1 to n
     } else {
@@ -185,18 +185,6 @@ with GeneratorDrivenPropertyChecks {
         r.incrby("anshin-4", 5)
       } catch {case ex: Throwable => ex.getMessage should startWith("ERR value is not an integer")}
     }
-
-    // additional tests
-    it("should increment atomically") {
-      r.set("anshin-1", "10") should equal(true)
-      doParallel(100)(r.incr("anshin-1"))
-      r.incr("anshin-1") should equal(Some(111))
-    }
-    it("should increment by 5 atomically") {
-      r.set("anshin-1", "10") should equal(true)
-      doParallel(100)(r.incrby("anshin-1", 5))
-      r.incrby("anshin-1", 5) should equal(Some(515))
-    }
   }
 
   describe("incrbyfloat") {
@@ -208,18 +196,6 @@ with GeneratorDrivenPropertyChecks {
       r.set("k1", "abc")
       val thrown = the[Exception] thrownBy {r.incrbyfloat("k1", 2.0e2f)}
       thrown.getMessage should include("value is not a valid float")
-    }
-
-    // additional tests
-    it("should increment by float atomically") {
-      r.set("k1", 10.50f) should equal(true)
-      doParallel(100)(r.incrbyfloat("k1", 0.1f))
-      r.incrbyfloat("k1", 0.1f) match {
-        case Some(x) =>
-          x should be > 20.599f
-          x should be < 20.6001f
-        case None => fail("should return Some")
-      }
     }
   }
 
@@ -243,18 +219,6 @@ with GeneratorDrivenPropertyChecks {
       try {
         r.decrby("anshin-4", 5)
       } catch {case ex: Throwable => ex.getMessage should startWith("ERR value is not an integer")}
-    }
-
-    // additional tests
-    it("should decrement atomically") {
-      r.set("anshin-1", "10") should equal(true)
-      doParallel(100)(r.decr("anshin-1"))
-      r.decr("anshin-1") should equal(Some(-91))
-    }
-    it("should decrement by 5 atomically") {
-      r.set("anshin-1", "10") should equal(true)
-      doParallel(100)(r.decrby("anshin-1", 5))
-      r.decrby("anshin-1", 5) should equal(Some(-495))
     }
   }
 
@@ -347,12 +311,6 @@ with GeneratorDrivenPropertyChecks {
       r.strlen("mykey") should equal(Some(11))
       r.strlen("nonexisting") should equal(Some(0))
     }
-
-    // additional tests
-    it("should return the byte length of the unicode value") {
-      r.set("mykey", "あいうえお")
-      r.strlen("mykey") should equal(Some(15))
-    }
   }
 
   describe("append") {
@@ -414,8 +372,68 @@ with GeneratorDrivenPropertyChecks {
       r.getbit("destKey", 1) should equal(Some(1))
       r.getbit("destKey", 2) should equal(Some(0))
     }
+  }
 
-    // additional tests
+  //
+  // additional tests
+  //
+  describe("incr (additional") {
+    it("should increment atomically") {
+      r.set("anshin-1", "10") should equal(true)
+      doParallel(100)(r.incr("anshin-1"))
+      r.incr("anshin-1") should equal(Some(111))
+    }
+    it("should increment by 5 atomically") {
+      r.set("anshin-1", "10") should equal(true)
+      doParallel(100)(r.incrby("anshin-1", 5))
+      r.incrby("anshin-1", 5) should equal(Some(515))
+    }
+  }
+
+  describe("incrbyfloat (additional)") {
+    it("should increment by float atomically") {
+      r.set("k1", 10.50f) should equal(true)
+      doParallel(100)(r.incrbyfloat("k1", 0.1f))
+      r.incrbyfloat("k1", 0.1f) match {
+        case Some(x) =>
+          x should be > 20.599f
+          x should be < 20.6001f
+        case None => fail("should return Some")
+      }
+    }
+  }
+
+  describe("decr (additional)") {
+    it("should decrement atomically") {
+      r.set("anshin-1", "10") should equal(true)
+      doParallel(100)(r.decr("anshin-1"))
+      r.decr("anshin-1") should equal(Some(-91))
+    }
+    it("should decrement by 5 atomically") {
+      r.set("anshin-1", "10") should equal(true)
+      doParallel(100)(r.decrby("anshin-1", 5))
+      r.decrby("anshin-1", 5) should equal(Some(-495))
+    }
+  }
+
+  describe("strlen (additional)") {
+    it("should return the byte length of the unicode value") {
+      r.set("mykey", "あいうえお")
+      r.strlen("mykey") should equal(Some(15))
+    }
+  }
+
+  describe("setbit (additional)") {
+    it("should throw exception when the bit is not 0 neither 1") {
+      val msg = "ERR bit is not an integer or out of range"
+      the [java.lang.Exception] thrownBy r.setbit("mykey", 7, 2) should have message msg
+      the [java.lang.Exception] thrownBy r.setbit("mykey", 7, -1) should have message msg
+      the [java.lang.Exception] thrownBy r.setbit("mykey", 7, "xyz") should have message msg
+      the [java.lang.Exception] thrownBy r.setbit("mykey", 7, None) should have message msg
+    }
+  }
+
+  describe("bitop (additional") {
     it("should work with non-existence keys") {
       import com.redis.serialization.Parse.Implicits.parseByteArray
 
@@ -483,12 +501,11 @@ with GeneratorDrivenPropertyChecks {
         r.bitop("OR", "destOr1", "key1", "key2", "key3") shouldBe Some(n)
         r.bitop("OR", "destOr2", "key3", "key1", "key2") shouldBe Some(n)
         r.get("destOr1").map(_.toSeq) should equal(r.get("destOr2").map(_.toSeq))
-        
+
         r.bitop("XOR", "destXor1", "key1", "key2", "key3") shouldBe Some(n)
         r.bitop("XOR", "destXor2", "key3", "key1", "key2") shouldBe Some(n)
         r.get("destXor1").map(_.toSeq) should equal(r.get("destXor2").map(_.toSeq))
       }
     }
   }
-
 }

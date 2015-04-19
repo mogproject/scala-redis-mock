@@ -1,0 +1,19 @@
+<configuration>
+
+    <property name="ROOT_LEVEL" value="${LOG_LEVEL:-INFO}"/>
+    <property name="LOG_HOME" value="logs"/>
+
+    <!-- disables message from logback itself -->
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%date [%level] %logger{15} - %message%n%xException{5}</pattern>
+        </encoder>
+    </appender>
+
+    <root level="${ROOT_LEVEL}">
+        <appender-ref ref="STDOUT"/>
+    </root>
+
+</configuration>
