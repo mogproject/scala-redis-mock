@@ -5,26 +5,13 @@ import org.scalatest._
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import scala.collection.parallel.ForkJoinTaskSupport
 
-class MockStringOperationsSpec extends FunSpec
-with Matchers
-with BeforeAndAfterEach
-with BeforeAndAfterAll
-with GeneratorDrivenPropertyChecks {
+class MockStringOperationsSpec extends FunSpec with Matchers with BeforeAndAfterEach with BeforeAndAfterAll
+  with GeneratorDrivenPropertyChecks {
 
-  // set environment variable
-  // USE_REAL_REDIS=yes
-  // to test with real Redis
-  val useRealRedis = sys.env.get("USE_REAL_REDIS").exists(_.toLowerCase == "yes")
-
-  val r = if (useRealRedis) {
-    println("[INFO] Connecting to REAL redis-server...")
-    new RedisClient("localhost", 6379)
-  } else {
-    new MockRedisClient("localhost", 6379)
-  }
+  val r = TestUtil.getRedisClient
 
   private def doParallel[A](n: Int)(f: => A) = {
-    val xs = if (useRealRedis) {
+    val xs = if (TestUtil.useRealRedis) {
       1 to n
     } else {
       val p = (1 to n).par
