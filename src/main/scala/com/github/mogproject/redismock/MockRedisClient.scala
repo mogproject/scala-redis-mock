@@ -13,15 +13,15 @@ class MockRedisClient(override val host: String,
 }
 
 trait MockRedisCommand extends Redis with MockOperations
-//with NodeOperations
+//with MockNodeOperations
 with MockStringOperations
-//with ListOperations
-//with SetOperations
-//with SortedSetOperations
-//with HashOperations
-//with EvalOperations
-//with PubOperations
-//with HyperLogLogOperations
+with MockListOperations
+//with MockSetOperations
+//with MockSortedSetOperations
+//with MockHashOperations
+//with MockEvalOperations
+//with MockPubOperations
+//with MockHyperLogLogOperations
 {
 
 }

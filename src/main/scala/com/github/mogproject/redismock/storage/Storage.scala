@@ -9,13 +9,18 @@ import scala.collection.concurrent.TrieMap
 trait Storage {
   self: Redis =>
 
-  type Database = TTLTrieMap[Key, Value]
+  import Storage.{Database, Node}
 
-  type Node = TrieMap[Int, Database]
-
-  private[this] lazy val index = TrieMap.empty[(String, Int), Node]
 
   def currentDB: Database = currentNode.getOrElseUpdate(db, new Database)
 
-  def currentNode: Node = index.getOrElseUpdate((host, port), new Node)
+  def currentNode: Node = Storage.index.getOrElseUpdate((host, port), new Node)
+}
+
+object Storage {
+  type Database = TTLTrieMap[Key, Value]
+  type Node = TrieMap[Int, Database]
+
+  lazy val index = TrieMap.empty[(String, Int), Node]
+
 }

@@ -1,6 +1,6 @@
 package com.github.mogproject.redismock
 
-import com.redis.{RedisClient, Seconds}
+import com.redis.Seconds
 import org.scalatest._
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import scala.collection.parallel.ForkJoinTaskSupport
@@ -364,6 +364,23 @@ class MockStringOperationsSpec extends FunSpec with Matchers with BeforeAndAfter
   //
   // additional tests
   //
+  describe("set (additional") {
+    it("should allow empty key") {
+      import com.redis.serialization.Parse.Implicits.parseByteArray
+      r.set(Array.empty[Byte], Array.empty[Byte]) shouldBe true
+      r.get(Array.empty[Byte]).get shouldBe Array.empty[Byte]  // Arrays are compared by .deep thanks to scalatest
+      r.set(Array.empty[Byte], Array[Byte](1, 2, 3)) shouldBe true
+      r.get(Array.empty[Byte]).get shouldBe Array[Byte](1, 2, 3)
+      r.dbsize shouldBe Some(1)
+    }
+    it("should not create new key if the key is same") {
+      r.set(Array[Byte](1, 2, 3), 123) shouldBe true
+      r.set(Array[Byte](1, 2, 3), 234) shouldBe true
+      r.set(Array[Byte](-1, 2, 3), 234) shouldBe true
+      r.dbsize shouldBe Some(2)
+    }
+  }
+
   describe("incr (additional") {
     it("should increment atomically") {
       r.set("anshin-1", "10") should equal(true)
