@@ -22,15 +22,21 @@ case class StringValue(value: STRING.DataType) extends Value { val valueType = S
 
 case class ListValue(value: LIST.DataType) extends Value { val valueType = LIST }
 
+case class SetValue(value: SET.DataType) extends Value { val valueType = SET }
+
 
 object StringValue {
-  def apply(value: Array[Byte]): StringValue = new StringValue(Bytes(value))
-
-  def apply(value: Any)(implicit format: Format): StringValue = apply(format(value))
+  def apply(value: Any)(implicit format: Format): StringValue = apply(value)
 }
 
 object ListValue {
   def apply(value: Traversable[Array[Byte]]): ListValue = new ListValue(value.map(Bytes.apply).toVector)
+
+  def apply(value: Traversable[Any])(implicit format: Format): ListValue = apply(value.map(format.apply))
+}
+
+object SetValue {
+  def apply(value: Set[Any])(implicit format: Format): ListValue = apply(value.map(format.apply))
 
   def apply(value: Traversable[Any])(implicit format: Format): ListValue = apply(value.map(format.apply))
 }

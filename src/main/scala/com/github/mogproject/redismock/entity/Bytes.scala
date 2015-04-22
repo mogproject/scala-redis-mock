@@ -19,6 +19,8 @@ case class Bytes(value: Vector[Byte]) extends IndexedSeqLike[Byte, Bytes] {
 
   def parse[A](parse: Parse[A]): A = parse(value.toArray)
 
+  def parseOption[A](parse: Parse[A]): Option[A] = Try(parse(value.toArray)).toOption
+
   def ++(bs: Bytes): Bytes = Bytes(value ++ bs.value)
 
   def ++(bs: Traversable[Byte]): Bytes = Bytes(value ++ bs)
