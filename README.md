@@ -51,7 +51,8 @@ redis-cli shutdown
 |[x]|[ ]|[ ]|Keys|
 |[x]|[x]|[ ]|Strings|
 |[x]|[x]|[ ]|Lists|
-|[ ]|[ ]|[ ]|Sets|
+|[x]|[x]|[ ]|Sets (except SSCAN)|
+|[ ]|[ ]|[ ]|Sets (SSCAN)|
 |[ ]|[ ]|[ ]|Sorted Sets|
 |[ ]|[ ]|[ ]|Hashes|
 |[ ]|[ ]|[ ]|HyperLogLog|
