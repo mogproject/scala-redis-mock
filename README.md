@@ -9,10 +9,18 @@ Pure scala mock for [scala-redis](https://github.com/debasishg/scala-redis)
 > **Note**: This library is under development!
 
 
+## Clone this repository
+
+```
+$ cd your_work_dir
+$ git clone git@github.com:mogproject/scala-redis-mock.git
+$ cd scala-redis-mock
+```
+
 ## Try it out (without real Redis)!
 
 ```
-sbt console
+$ sbt console
 
 scala> r.set("foo", "bar")
 res0: Boolean = true
@@ -51,11 +59,11 @@ redis-cli shutdown
 |[x]|[ ]|[ ]|Keys|
 |[x]|[x]|[ ]|Strings|
 |[x]|[x]|[ ]|Lists|
-|[x]|[x]|[ ]|Sets (except SSCAN)|
-|[ ]|[ ]|[ ]|Sets (SSCAN)|
+|[x]|[x]|[ ]|Sets|
 |[ ]|[ ]|[ ]|Sorted Sets|
-|[ ]|[ ]|[ ]|Hashes|
+|[x]|[x]|[ ]|Hashes|
 |[ ]|[ ]|[ ]|HyperLogLog|
+|[ ]|[ ]|[ ]|sscan, hscan|
 
 #### Features
 |started|feature impl|complete|feature|
