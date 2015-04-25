@@ -24,6 +24,8 @@ case class ListValue(value: LIST.DataType) extends Value { val valueType = LIST 
 
 case class SetValue(value: SET.DataType) extends Value { val valueType = SET }
 
+case class HashValue(value: HASH.DataType) extends Value { val valueType = HASH }
+
 
 object StringValue {
   def apply(value: Any)(implicit format: Format): StringValue = apply(value)
@@ -39,4 +41,9 @@ object SetValue {
   def apply(value: Set[Any])(implicit format: Format): ListValue = apply(value.map(format.apply))
 
   def apply(value: Traversable[Any])(implicit format: Format): ListValue = apply(value.map(format.apply))
+}
+
+object HashValue {
+  def apply(value: Map[Any, Any])(implicit format: Format): HashValue =
+    new HashValue(value.map { case (k, v) => Bytes(k) -> Bytes(v) })
 }
