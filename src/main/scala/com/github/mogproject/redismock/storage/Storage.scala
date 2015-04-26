@@ -15,6 +15,11 @@ trait Storage {
   def currentDB: Database = currentNode.getOrElseUpdate(db, new Database)
 
   def currentNode: Node = Storage.index.getOrElseUpdate((host, port), new Node)
+
+  /**
+   * get specified database in the current node
+   */
+  def getDB(db: Int): Database = currentNode.getOrElseUpdate(db, new Database)
 }
 
 object Storage {
