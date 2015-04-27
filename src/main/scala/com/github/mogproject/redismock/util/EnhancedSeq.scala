@@ -2,7 +2,6 @@ package com.github.mogproject.redismock.util
 
 import scala.util.Try
 
-//implicit def seqToEnhancedSeq
 
 /**
  * Enhanced and safer indexed sequence class

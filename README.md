@@ -56,7 +56,7 @@ redis-cli shutdown
 
 |started|feature impl|complete|feature|
 |:-:|:-:|:-:|:--|
-|[x]|[ ]|[ ]|Keys|
+|[x]|[x]|[ ]|Keys|
 |[x]|[x]|[ ]|Strings|
 |[x]|[x]|[ ]|Lists|
 |[x]|[x]|[ ]|Sets|
@@ -64,6 +64,7 @@ redis-cli shutdown
 |[x]|[x]|[ ]|Hashes|
 |[ ]|[ ]|[ ]|HyperLogLog|
 |[ ]|[ ]|[ ]|sscan, hscan|
+|[ ]|[ ]|[ ]|sort, sortNStore|
 
 #### Features
 |started|feature impl|complete|feature|
