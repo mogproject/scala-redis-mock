@@ -4,6 +4,7 @@ import com.github.mogproject.redismock.entity.{Bytes, LIST, Key, ListValue}
 import com.github.mogproject.redismock.storage.Storage
 import com.redis.{Redis, ListOperations}
 import com.redis.serialization._
+import com.github.mogproject.redismock.util.ops._
 import com.github.mogproject.redismock.util.Implicits._
 import scala.annotation.tailrec
 
@@ -14,9 +15,8 @@ trait MockListOperations extends ListOperations with MockOperations with Storage
   // helper functions
   //
 
-  private def setRaw(key: Any, rawValue: Traversable[Bytes])(implicit format: Format): Unit = {
+  private def setRaw(key: Any, rawValue: Traversable[Bytes])(implicit format: Format): Unit =
     currentDB.update(Key(key), ListValue(rawValue.toVector))
-  }
 
   private def getRaw(key: Any)(implicit format: Format): Option[LIST.DataType] = currentDB.get(Key(key)).map(_.as(LIST))
 
@@ -26,9 +26,7 @@ trait MockListOperations extends ListOperations with MockOperations with Storage
   // LPUSH (Variadic: >= 2.4)
   // add values to the head of the list stored at key
   override def lpush(key: Any, value: Any, values: Any*)(implicit format: Format): Option[Long] = withDB {
-    val v = (value :: values.toList).map(Bytes.apply).toVector ++ getRawOrEmpty(key)
-    setRaw(key, v)
-    Some(v.size)
+    (value :: values.toList).map(Bytes.apply) ++ getRawOrEmpty(key) <| (setRaw(key, _)) |> { v => Some(v.size)}
   }
 
   // LPUSHX (Variadic: >= 2.4)
@@ -38,9 +36,7 @@ trait MockListOperations extends ListOperations with MockOperations with Storage
   // RPUSH (Variadic: >= 2.4)
   // add values to the tail of the list stored at key
   override def rpush(key: Any, value: Any, values: Any*)(implicit format: Format): Option[Long] = withDB {
-    val v = getRawOrEmpty(key) ++ (value :: values.toList).map(Bytes.apply).toVector
-    setRaw(key, v)
-    Some(v.size)
+    getRawOrEmpty(key) ++ (value :: values.toList).map(Bytes.apply) <| (setRaw(key, _)) |> { v => Some(v.size)}
   }
 
   // RPUSHX (Variadic: >= 2.4)
@@ -56,7 +52,8 @@ trait MockListOperations extends ListOperations with MockOperations with Storage
   // LRANGE
   // return the specified elements of the list stored at the specified key.
   // Start and end are zero-based indexes.
-  override def lrange[A](key: Any, start: Int, end: Int)(implicit format: Format, parse: Parse[A]): Option[List[Option[A]]] = {
+  override def lrange[A](key: Any, start: Int, end: Int)
+                        (implicit format: Format, parse: Parse[A]): Option[List[Option[A]]] = {
     getRaw(key) map {
       _.sliceFromTo(start, end).map(_.parseOption(parse)).toList
     }
@@ -148,65 +145,38 @@ trait MockListOperations extends ListOperations with MockOperations with Storage
     }
   }
 
-  override def brpoplpush[A](srcKey: Any, dstKey: Any, timeoutInSeconds: Int)(implicit format: Format, parse: Parse[A]): Option[A] = {
-    @tailrec
-    def loop(limit: Long): Option[A] = {
-      if (limit != 0 && limit <= System.currentTimeMillis()) {
-        None
-      } else {
-        getRaw(srcKey) match {
-          case Some(bs) if bs.nonEmpty => rpoplpush(srcKey, dstKey) // TODO: reduce # of getRaw (to be once) and be atomic
-          case _ => Thread.sleep(500L); loop(limit)
-        }
-      }
-    }
+  override def brpoplpush[A](srcKey: Any, dstKey: Any, timeoutInSeconds: Int)
+                            (implicit format: Format, parse: Parse[A]): Option[A] =
+    loopUntilFound(List(srcKey))(rpoplpush(_, dstKey))(getTimeLimit(timeoutInSeconds))
 
-    loop(if (timeoutInSeconds == 0) 0 else System.currentTimeMillis() + timeoutInSeconds * 1000L)
+  override def blpop[K, V](timeoutInSeconds: Int, key: K, keys: K*)
+                          (implicit format: Format, parseK: Parse[K], parseV: Parse[V]): Option[(K, V)] = {
+    loopUntilFound(key :: keys.toList){ k => lpop(k)(format, parseV).map((k, _))}(getTimeLimit(timeoutInSeconds))
   }
 
-  override def blpop[K, V](timeoutInSeconds: Int, key: K, keys: K*)(implicit format: Format, parseK: Parse[K], parseV: Parse[V]): Option[(K, V)] = {
-    val ks = key #:: keys.toStream
-
-    @tailrec
-    def loop(limit: Long): Option[(K, V)] = {
-      if (limit != 0 && limit <= System.currentTimeMillis()) {
-        None
-      } else {
-        val results = ks.map(k => (k, getRawOrEmpty(k)))
-        results.find(_._2.nonEmpty) match {
-          case Some((k, _)) =>
-            // TODO: refactor and be atomic
-            Some((k, lpop(k)(format, parseV).get))
-          case _ =>
-            Thread.sleep(500L)
-            loop(limit)
-        }
-      }
-    }
-
-    loop(if (timeoutInSeconds == 0) 0 else System.currentTimeMillis() + timeoutInSeconds * 1000L)
+  override def brpop[K, V](timeoutInSeconds: Int, key: K, keys: K*)
+                          (implicit format: Format, parseK: Parse[K], parseV: Parse[V]): Option[(K, V)] = {
+    loopUntilFound(key :: keys.toList){ k => rpop(k)(format, parseV).map((k, _))}(getTimeLimit(timeoutInSeconds))
   }
 
-  override def brpop[K, V](timeoutInSeconds: Int, key: K, keys: K*)(implicit format: Format, parseK: Parse[K], parseV: Parse[V]): Option[(K, V)] = {
-    val ks = key #:: keys.toStream
+  private def findFirstNonEmpty[K](keys: Seq[K])(implicit format: Format): Option[K] =
+    keys.find(getRawOrEmpty(_).nonEmpty)
 
-    @tailrec
-    def loop(limit: Long): Option[(K, V)] = {
-      if (limit != 0 && limit <= System.currentTimeMillis()) {
-        None
-      } else {
-        val results = ks.map(k => (k, getRawOrEmpty(k)))
-        results.find(_._2.nonEmpty) match {
-          case Some((k, _)) =>
-            // TODO: refactor and be atomic
-            Some((k, rpop(k)(format, parseV).get))
-          case _ =>
-            Thread.sleep(500L)
-            loop(limit)
-        }
+  @tailrec
+  private def loopUntilFound[K, A](keys: Seq[K])(task: K => Option[A])(limit: Long): Option[A] = {
+    if (limit != 0 && limit <= System.currentTimeMillis()) {
+      None
+    } else {
+      val result = withDB {findFirstNonEmpty(keys).flatMap(task)}
+      result match {
+        case Some(_) => result
+        case None =>
+          Thread.sleep(500L)
+          loopUntilFound(keys)(task)(limit)
       }
     }
-
-    loop(if (timeoutInSeconds == 0) 0 else System.currentTimeMillis() + timeoutInSeconds * 1000L)
   }
+
+  private def getTimeLimit(timeoutInSeconds: Int): Long =
+    if (timeoutInSeconds == 0) 0 else System.currentTimeMillis() + timeoutInSeconds * 1000L
 }
