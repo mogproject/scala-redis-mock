@@ -1,25 +1,32 @@
 package com.github.mogproject.redismock.entity
 
 import com.redis.serialization.{Format, Parse}
+import com.redis.serialization.Parse.parseDefault
 import scala.collection.immutable.VectorBuilder
-import scala.collection.{IndexedSeqLike, mutable}
+import scala.collection.mutable
 import scala.util.Try
+
 
 /**
  * data should be stored as vector to compare accurately
  * @param value value binary
  */
-case class Bytes(value: Vector[Byte]) extends IndexedSeqLike[Byte, Bytes] {
+case class Bytes(value: Vector[Byte])
+  extends scala.collection.AbstractSeq[Byte]
+  with scala.collection.immutable.IndexedSeq[Byte]
+  with scala.collection.TraversableLike[Byte, Bytes]
+  with scala.collection.IndexedSeqLike[Byte, Bytes]
+  with scala.Serializable {
 
-  def newBuilder: mutable.Builder[Byte, Bytes] = new BytesBuilder
+  override def newBuilder: mutable.Builder[Byte, Bytes] = new BytesBuilder
 
-  lazy val seq: IndexedSeq[Byte] = value
+//  override val seq: IndexedSeq[Byte] = value
+//
+  override val length: Int = value.length
 
-  lazy val length: Int = value.length
+  def parse[A](parse: Parse[A] = parseDefault): A = parse(value.toArray)
 
-  def parse[A](parse: Parse[A]): A = parse(value.toArray)
-
-  def parseOption[A](parse: Parse[A]): Option[A] = Try(parse(value.toArray)).toOption
+  def parseOption[A](parse: Parse[A] = parseDefault): Option[A] = Try(this.parse(parse)).toOption
 
   def ++(bs: Bytes): Bytes = Bytes(value ++ bs.value)
 
@@ -42,6 +49,9 @@ case class Bytes(value: Vector[Byte]) extends IndexedSeqLike[Byte, Bytes] {
     }
   }
 
+  /** Return n-length Bytes padding with elem */
+  def resized(n: Int, elem: => Byte = 0.toByte): Bytes = take(n) ++ Bytes.fill(n - length)(elem)
+
   override def equals(other: Any): Boolean = canEqual(other) && (other match {
     case that: Bytes => this.value == that.value
     case _ => false
@@ -49,7 +59,7 @@ case class Bytes(value: Vector[Byte]) extends IndexedSeqLike[Byte, Bytes] {
 
   override def hashCode: Int = value.hashCode
 
-  override def toString = new String(value.toArray)
+  def newString = new String(value.toArray)
 }
 
 /**
@@ -57,9 +67,9 @@ case class Bytes(value: Vector[Byte]) extends IndexedSeqLike[Byte, Bytes] {
  */
 object Bytes {
 
-//  def newBuilder[A]: mutable.Builder[Byte, Bytes] = new BytesBuilder
-
   def apply(v: Traversable[Byte]): Bytes = new Bytes(v.toVector)
+
+  def apply(xs: Int*): Bytes = new Bytes(xs.map(_.toByte).toVector)
 
   def apply(v: Any)(implicit format: Format): Bytes = new Bytes(format(v).toVector)
 
@@ -73,7 +83,7 @@ final class BytesBuilder() extends mutable.Builder[Byte, Bytes] {
 
   private val builder = new VectorBuilder[Byte]
 
-  def += (elem: Byte): this.type = {
+  def +=(elem: Byte): this.type = {
     builder += elem
     this
   }
