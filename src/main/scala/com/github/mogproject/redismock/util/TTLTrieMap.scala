@@ -43,8 +43,8 @@ class TTLTrieMap[K, V] {
    * @param timestamp timestamp to be expired in millis
    * @return true if the key exists
    */
-  def updateExpireAt(key: K, timestamp: Long): Boolean = withTransaction { t =>
-    t.contains(key) whenTrue t.expireAt.update(key, timestamp)
+  def updateExpireAt(key: K, timestamp: Long): Boolean = synchronized {
+    contains(key) whenTrue expireAt.update(key, timestamp)
   }
 
   /**
@@ -167,8 +167,6 @@ class TTLTrieMap[K, V] {
     truncate(time)
     f
   }
-
-  def withTransaction[A](thunk: TTLTrieMap[K, V] => A): A = synchronized(thunk(this))
 
   override def equals(other: Any): Boolean = other match {
     case that: TTLTrieMap[K, V] => withTruncate()(this.store == that.store && this.expireAt == that.expireAt)
