@@ -20,8 +20,6 @@ case class Bytes(value: Vector[Byte])
 
   override def newBuilder: mutable.Builder[Byte, Bytes] = new BytesBuilder
 
-//  override val seq: IndexedSeq[Byte] = value
-//
   override val length: Int = value.length
 
   def parse[A](parse: Parse[A] = parseDefault): A = parse(value.toArray)

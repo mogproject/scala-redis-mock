@@ -46,6 +46,14 @@ with BeforeAndAfterAll {
     }
   }
 
+  describe("Bytes#newString") {
+    it("should make string from bytes") {
+      Bytes.empty.newString shouldBe ""
+      Bytes(97).newString shouldBe "a"
+      Bytes(97, 98, 99, 100, 101).newString shouldBe "abcde"
+    }
+  }
+
   describe("Bytes#apply") {
     it("should construct with Vector[Byte]") {
       Bytes.apply(Vector.empty[Byte]) shouldBe Bytes.empty
