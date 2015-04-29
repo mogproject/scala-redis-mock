@@ -56,9 +56,11 @@ trait MockSetOperations extends SetOperations with MockOperations with Storage {
   // Remove and return (pop) a random element from the Set value at key.
   override def spop[A](key: Any)(implicit format: Format, parse: Parse[A]): Option[A] = withDB {
     // TODO: random choice
-    val (h, t) = getRawOrEmpty(key).splitAt(1)
-    h.headOption.map { x =>
-      setRaw(key, t)
+    for {
+      s <- getRaw(key)
+      x <- s.headOption
+    } yield {
+      setRaw(key, s.tail)
       x.parse(parse)
     }
   }

@@ -9,35 +9,36 @@ import com.redis.serialization.{Format, Parse}
 import scala.util.Random
 
 
-trait MockOperations extends Operations with Storage { self: Redis =>
+trait MockOperations extends Operations with Storage {
+  self: Redis =>
 
   lazy val random = new Random(12345L)
 
   // SORT
   // sort keys in a set, and optionally pull values for them
-  override def sort[A](key:String,
-              limit:Option[(Int, Int)] = None,
-              desc:Boolean = false,
-              alpha:Boolean = false,
-              by:Option[String] = None,
-              get:List[String] = Nil)(implicit format:Format, parse:Parse[A]):Option[List[Option[A]]] = ???
+  override def sort[A](key: String,
+                       limit: Option[(Int, Int)] = None,
+                       desc: Boolean = false,
+                       alpha: Boolean = false,
+                       by: Option[String] = None,
+                       get: List[String] = Nil)(implicit format: Format, parse: Parse[A]): Option[List[Option[A]]] = ???
 
   // SORT with STORE
   // sort keys in a set, and store result in the supplied key
-  override def sortNStore[A](key:String,
-                    limit:Option[(Int, Int)] = None,
-                    desc:Boolean = false,
-                    alpha:Boolean = false,
-                    by:Option[String] = None,
-                    get:List[String] = Nil,
-                    storeAt: String)(implicit format:Format, parse:Parse[A]):Option[Long] = ???
+  override def sortNStore[A](key: String,
+                             limit: Option[(Int, Int)] = None,
+                             desc: Boolean = false,
+                             alpha: Boolean = false,
+                             by: Option[String] = None,
+                             get: List[String] = Nil,
+                             storeAt: String)(implicit format: Format, parse: Parse[A]): Option[Long] = ???
 
   // KEYS
   // returns all the keys matching the glob-style pattern.
   override def keys[A](pattern: Any = "*")(implicit format: Format, parse: Parse[A]): Option[List[Option[A]]] = {
     val r = StringUtil.globToRegex(pattern.toString)
-    println(r)
-    Some(currentDB.keys.withFilter(k => k.k.parse().matches(r)).map(k => k.k.parseOption(parse)).toList)
+    currentDB.keys.view.map(_.k).filter(_.parse(Parse.parseStringSafe).matches(r))
+      .map(_.parseOption(parse)).toList |> Some.apply
   }
 
   // RANDKEY
@@ -54,12 +55,13 @@ trait MockOperations extends Operations with Storage { self: Redis =>
   // RENAME (oldkey, newkey)
   // atomically renames the key oldkey to newkey.
   override def rename(oldkey: Any, newkey: Any)(implicit format: Format): Boolean =
-    currentDB.renameKey(Key(oldkey), Key(newkey)) whenFalse { throw new RuntimeException("ERR no such key") }
+    currentDB.renameKey(Key(oldkey), Key(newkey)) whenFalse {throw new RuntimeException("ERR no such key")}
 
   // RENAMENX (oldkey, newkey)
   // rename oldkey into newkey but fails if the destination key newkey already exists.
-  override def renamenx(oldkey: Any, newkey: Any)(implicit format: Format): Boolean =
+  override def renamenx(oldkey: Any, newkey: Any)(implicit format: Format): Boolean = withDB {
     !exists(newkey) && rename(oldkey, newkey)
+  }
 
   // DBSIZE
   // return the size of the db.
@@ -67,20 +69,20 @@ trait MockOperations extends Operations with Storage { self: Redis =>
 
   // EXISTS (key)
   // test if the specified key exists.
-  override def exists(key: Any)(implicit format: Format): Boolean = currentDB.contains(Key(format(key)))
+  override def exists(key: Any)(implicit format: Format): Boolean = Key(key) |> currentDB.contains
 
   // DELETE (key1 key2 ..)
   // deletes the specified keys.
   override def del(key: Any, keys: Any*)(implicit format: Format): Option[Long] = {
     val oldSize = currentDB.size
-    (Seq(key) ++ keys) foreach { k => currentDB.remove(Key(format(k))) }
+    (key :: keys.toList) foreach {Key(_) |> currentDB.remove}
     Some(oldSize - currentDB.size)
   }
 
   // TYPE (key)
   // return the type of the value stored at key in form of a string.
   override def getType(key: Any)(implicit format: Format): Option[String] =
-    Some(currentDB.get(Key(key)).map(_.valueType.toString.toLowerCase).getOrElse("none"))
+    (Key(key) |> currentDB.get).map(_.valueType.toString.toLowerCase).getOrElse("none") |> Some.apply
 
   // EXPIRE (key, expiry)
   // sets the expire time (in sec.) for the specified key.
@@ -111,40 +113,29 @@ trait MockOperations extends Operations with Storage { self: Redis =>
 
   // SELECT (index)
   // selects the DB to connect, defaults to 0 (zero).
-  override def select(index: Int): Boolean = (0 <= index) whenTrue { db = index }
+  override def select(index: Int): Boolean = (0 <= index) whenTrue {db = index}
 
   // FLUSHDB the DB
   // removes all the DB data.
-  override def flushdb: Boolean = {
-    currentDB.clear()
-    true
-  }
+  override def flushdb: Boolean = true whenTrue currentDB.clear()
 
   // FLUSHALL the DB's
   // removes data from all the DB's.
-  override def flushall: Boolean = {
-    currentNode.clear()
-    true
-  }
+  override def flushall: Boolean = true whenTrue currentNode.clear()
 
   // MOVE
   // Move the specified key from the currently selected DB to the specified destination DB.
   override def move(key: Any, db: Int)(implicit format: Format): Boolean = if (this.db == db) {
-    true
-  } else if (db < 0) {
     false
-  } else {
-    currentDB.synchronized {
+  } else withDB {
+    val k = Key(key)
+    currentDB.getWithExpireAt(k).map { case (v, t) =>
       val dst = getDB(db)
       dst.synchronized {
-        val k = Key(key)
-        currentDB.get(k).map { v =>
-          dst.update(k, v)
-          currentDB.getExpireAt(k) map { dst.updateExpireAt(k, _) } getOrElse dst.removeExpireAt(k)
-          currentDB.remove(k)
-        }.isDefined
+        dst.update(k, v, t)
+        currentDB.remove(k)
       }
-    }
+    }.isDefined
   }
 
   // QUIT
@@ -153,10 +144,7 @@ trait MockOperations extends Operations with Storage { self: Redis =>
 
   // AUTH
   // auths with the server.
-  override def auth(secret: Any)(implicit format: Format): Boolean = {
-    // always returns true in the mock
-    true
-  }
+  override def auth(secret: Any)(implicit format: Format): Boolean = true // always returns true in the mock
 
   // PERSIST (key)
   // Remove the existing timeout on key, turning the key from volatile (a key with an expire set)
@@ -165,5 +153,9 @@ trait MockOperations extends Operations with Storage { self: Redis =>
 
   // SCAN
   // Incrementally iterate the keys space (since 2.8)
-  override def scan[A](cursor: Int, pattern: Any = "*", count: Int = 10)(implicit format: Format, parse: Parse[A]): Option[(Option[Int], Option[List[Option[A]]])] = ???
+  override def scan[A](cursor: Int, pattern: Any = "*", count: Int = 10)
+                      (implicit format: Format, parse: Parse[A])
+  : Option[(Option[Int], Option[List[Option[A]]])] =
+  // TODO: implement
+    ???
 }
