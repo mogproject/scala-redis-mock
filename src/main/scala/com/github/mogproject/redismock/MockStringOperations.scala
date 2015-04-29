@@ -3,6 +3,7 @@ package com.github.mogproject.redismock
 import com.github.mogproject.redismock.entity.{Bytes, StringValue, Key, STRING}
 import com.github.mogproject.redismock.storage.Storage
 import com.github.mogproject.redismock.util.ops._
+import com.github.mogproject.redismock.util.Implicits._
 import com.redis._
 import com.redis.serialization.Format
 import com.redis.serialization.Parse
@@ -22,11 +23,22 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
   private def setRaw(key: Any, value: Bytes, ttl: Option[Long])(implicit format: Format): Unit =
     currentDB.update(Key(key), StringValue(value), ttl)
 
-  private def getRaw(key: Any)(implicit format: Format): Option[Bytes] =
-    currentDB.get(Key(key)).map(_.as(STRING))
+  private def getRaw(key: Any)(implicit format: Format): Option[Bytes] = currentDB.get(Key(key)).map(_.as(STRING))
 
-  private def getRawOrEmpty(key: Any)(implicit format: Format): Bytes =
-    getRaw(key).getOrElse(Bytes.empty)
+  private def getRawOrEmpty(key: Any)(implicit format: Format): Bytes = getRaw(key).getOrElse(Bytes.empty)
+
+  private def getLong(key: Any)(implicit format: Format): Option[Long] = get(key).map { v =>
+    Try(v.toLong).getOrElse(throw new RuntimeException("ERR value is not an integer or out of range"))
+  }
+
+  private def getLongOrZero(key: Any)(implicit format: Format): Long = getLong(key).getOrElse(0L)
+
+  private def getFloat(key: Any)(implicit format: Format): Option[Float] = get(key).map { v =>
+    Try(v.toFloat).getOrElse(throw new RuntimeException("ERR value is not a valid float"))
+  }
+
+  private def getFloatOrZero(key: Any)(implicit format: Format): Float = getFloat(key).getOrElse(0.0f)
+
 
   private def getTime(time: SecondsOrMillis): Long = time match {
     case Seconds(v) => v * 1000L
@@ -79,7 +91,7 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
     set(key, value, onlyIfExists, t)
   }
 
-  override def set(key: Any, value: Any, onlyIfExists: Boolean, time: SecondsOrMillis): Boolean = {
+  override def set(key: Any, value: Any, onlyIfExists: Boolean, time: SecondsOrMillis): Boolean = withDB {
     (!exists(key) ^ onlyIfExists) whenTrue {setRaw(key, Bytes(value), Some(getTime(time)))}
   }
 
@@ -89,12 +101,15 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
 
   // GETSET (key, value)
   // is an atomic set this value and return the old value command.
-  override def getset[A](key: Any, value: Any)(implicit format: Format, parse: Parse[A]): Option[A] =
+  override def getset[A](key: Any, value: Any)(implicit format: Format, parse: Parse[A]): Option[A] = withDB {
     get(key) <| { _ => set(key, value)}
+  }
 
   // SETNX (key, value)
   // sets the value for the specified key, only if the key is not there.
-  override def setnx(key: Any, value: Any)(implicit format: Format): Boolean = !exists(key) && set(key, value)
+  override def setnx(key: Any, value: Any)(implicit format: Format): Boolean = withDB {
+    !exists(key) whenTrue set(key, value)
+  }
 
   override def setex(key: Any, expiry: Long, value: Any)(implicit format: Format): Boolean =
     psetex(key, expiry * 1000L, value)
@@ -109,19 +124,11 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
   // INCR (key, increment)
   // increments the specified key by increment
   override def incrby(key: Any, increment: Int)(implicit format: Format): Option[Long] = withDB {
-    val n = get(key).map { v =>
-      Try(v.toLong).getOrElse(throw new RuntimeException("ERR value is not an integer or out of range"))
-    }.getOrElse(0L) + increment
-    set(key, n)
-    Some(n)
+    getLongOrZero(key) + increment <| { x => set(key, x)} |> Some.apply
   }
 
   override def incrbyfloat(key: Any, increment: Float)(implicit format: Format): Option[Float] = withDB {
-    val n = get(key).map { v =>
-      Try(v.toFloat).getOrElse(throw new RuntimeException("ERR value is not a valid float"))
-    }.getOrElse(0.0f) + increment
-    set(key, n)
-    Some(n)
+    getFloatOrZero(key) + increment <| { x => set(key, x)} |> Some.apply
   }
 
   // DECR (key)
@@ -148,23 +155,16 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
   // SETRANGE key offset value
   // Overwrites part of the string stored at key, starting at the specified offset,
   // for the entire length of value.
-  override def setrange(key: Any, offset: Int, value: Any)(implicit format: Format): Option[Long] = {
-    val a = getRawOrEmpty(key)
-    val b = format(value)
-    val c = a.take(offset) ++ Bytes.fill(math.max(0, offset - a.length))(0.toByte) ++ b ++ a.drop(offset + b.length)
-    setRaw(key, c)
-    Some(c.length)
+  override def setrange(key: Any, offset: Int, value: Any)(implicit format: Format): Option[Long] = withDB {
+    def f(v: Bytes) = getRawOrEmpty(key).resized(offset).patch(offset, v, v.length)
+    (Bytes(value) |> f |> Bytes.apply) <| {setRaw(key, _)} |> { xs => Some(xs.length)}
   }
 
   // GETRANGE key start end
   // Returns the substring of the string value stored at key, determined by the offsets
   // start and end (both are inclusive).
-  override def getrange[A](key: Any, start: Int, end: Int)(implicit format: Format, parse: Parse[A]): Option[A] = {
-    getRaw(key).map { x =>
-      def f(n: Int): Int = if (n < 0) x.length + n else n
-      x.slice(f(start), f(end) + 1).parse(parse)
-    }
-  }
+  override def getrange[A](key: Any, start: Int, end: Int)(implicit format: Format, parse: Parse[A]): Option[A] =
+    getRaw(key).map(_.sliceFromTo(start, end)).map(xs => Bytes(xs).parse(parse))
 
   // STRLEN key
   // gets the length of the value associated with the key
@@ -172,29 +172,20 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
 
   // APPEND KEY (key, value)
   // appends the key value with the specified value.
-  override def append(key: Any, value: Any)(implicit format: Format): Option[Long] = {
-    val xs = getRawOrEmpty(key)
-    val ys = xs ++ format(value)
-    setRaw(key, ys)
-    Some(ys.length)
+  override def append(key: Any, value: Any)(implicit format: Format): Option[Long] = withDB {
+    getRawOrEmpty(key) ++ Bytes(value) <| {setRaw(key, _)} |> { xs => Some(xs.length)}
   }
 
   // GETBIT key offset
   // Returns the bit value at offset in the string value stored at key
   override def getbit(key: Any, offset: Int)(implicit format: Format): Option[Int] = {
     val (n, m) = (offset / 8, 7 - offset % 8)
-
-    getRaw(key).map { v =>
-      if (v.length < n)
-        0
-      else
-        (b2ui(v(n)) >> m) & 1
-    }
+    getRaw(key).map { v => if (v.length < n) 0 else (b2ui(v(n)) >> m) & 1}
   }
 
   // SETBIT key offset value
   // Sets or clears the bit at offset in the string value stored at key
-  override def setbit(key: Any, offset: Int, value: Any)(implicit format: Format): Option[Int] = {
+  override def setbit(key: Any, offset: Int, value: Any)(implicit format: Format): Option[Int] = withDB {
     val x = value match {
       case x: Int if x == 0 || x == 1 => x
       case _ => throw new Exception("ERR bit is not an integer or out of range")
@@ -222,18 +213,13 @@ trait MockStringOperations extends StringOperations with MockOperations with Sto
   // BITOP OR destkey srckey1 srckey2 srckey3 ... srckeyN
   // BITOP XOR destkey srckey1 srckey2 srckey3 ... srckeyN
   // BITOP NOT destkey srckey
-  override def bitop(op: String, destKey: Any, srcKeys: Any*)(implicit format: Format): Option[Int] = {
+  override def bitop(op: String, destKey: Any, srcKeys: Any*)(implicit format: Format): Option[Int] = withDB {
     val result: Bytes = op.toUpperCase match {
       case "AND" => srcKeys.view.map(getRawOrEmpty).reduceLeft(bitBinOp(_ & _))
       case "OR" => srcKeys.view.map(getRawOrEmpty).reduceLeft(bitBinOp(_ | _))
       case "XOR" => srcKeys.view.map(getRawOrEmpty).reduceLeft(bitBinOp(_ ^ _))
       case "NOT" => Bytes(getRawOrEmpty(srcKeys(0)).map(x => (~x).toByte))
     }
-    if (result.isEmpty) {
-      del(destKey)
-    } else {
-      setRaw(destKey, result)
-    }
-    Some(result.length)
+    result <| { r => if (r.isEmpty) del(destKey) else setRaw(destKey, r)} |> { xs => Some(xs.length)}
   }
 }
