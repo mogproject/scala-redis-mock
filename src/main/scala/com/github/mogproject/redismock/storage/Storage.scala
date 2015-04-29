@@ -19,7 +19,10 @@ trait Storage {
   /**
    * get specified database in the current node
    */
-  def getDB(db: Int): Database = currentNode.getOrElseUpdate(db, new Database)
+  def getDB(db: Int): Database = {
+    require(db >= 0)
+    currentNode.getOrElseUpdate(db, new Database)
+  }
 
   /**
    * syntax sugar for executing atomic tasks with current DB

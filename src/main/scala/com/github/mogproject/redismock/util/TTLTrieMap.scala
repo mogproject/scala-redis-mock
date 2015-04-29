@@ -9,6 +9,7 @@ import com.github.mogproject.redismock.util.ops._
 class TTLTrieMap[K, V] {
   private[util] final val store = TrieMap.empty[K, V]
   private[util] final val expireAt = TrieMap.empty[K, Long]
+  private val neverExpire = -1L
 
   private[this] def now(): Long = System.currentTimeMillis()
 
@@ -18,9 +19,7 @@ class TTLTrieMap[K, V] {
    * @param key key
    * @param value value
    */
-  def update(key: K, value: V): Unit = {
-    store.update(key, value)
-  }
+  def update(key: K, value: V): Unit = store.update(key, value)
 
   /**
    * update key/value with ttl
@@ -29,12 +28,18 @@ class TTLTrieMap[K, V] {
    * @param value value
    * @param ttl time to live in millis (None means infinite ttl)
    */
-  def update(key: K, value: V, ttl: Option[Long]): Unit = {
+  def update(key: K, value: V, ttl: Option[Long]): Unit = update(key, value, ttl.map(now() + _).getOrElse(neverExpire))
+
+  /**
+   * update key/value with datetime to be expired
+   *
+   * @param key key
+   * @param value value
+   * @param timestamp timestamp to be expired in millis (-1: never expired)
+   */
+  def update(key: K, value: V, timestamp: Long): Unit = synchronized {
     store.update(key, value)
-    ttl match {
-      case Some(t) => expireAt.update(key, now() + t)
-      case None => expireAt.remove(key)
-    }
+    if (timestamp == neverExpire) expireAt.remove(key) else expireAt.update(key, timestamp)
   }
 
   /**
@@ -63,14 +68,17 @@ class TTLTrieMap[K, V] {
    * @return return None if the key doesn't exist or has expired,
    *         otherwise return the value wrapped with Some
    */
-  def get(key: K): Option[V] = {
-    if (expireAt.get(key).exists(_ <= now())) {
-      remove(key)
-      None
-    } else {
-      store.get(key)
-    }
-  }
+  def get(key: K): Option[V] = withTruncate() {store.get(key)}
+
+  /**
+   * get the current value and the datetime to be expired in millis
+   *
+   * @param key key
+   * @return return None if the key doesn't exist or has expired,
+   *         otherwise return 2-tuple of the value and the expired-at (-1: never expired) wrapped with Some
+   */
+  def getWithExpireAt(key: K): Option[(V, Long)] =
+    withTruncate() {store.get(key).map { v => (v, expireAt.getOrElse(key, neverExpire))}}
 
   /**
    * get the datetime to be expired in millis
@@ -78,8 +86,7 @@ class TTLTrieMap[K, V] {
    * @param key key
    * @return if the key exists and the ttl is not set, then return Some(-1)
    */
-  def getExpireAt(key: K): Option[Long] =
-    withTruncate(){ if (contains(key)) Some(expireAt.getOrElse(key, -1L)) else None }
+  def getExpireAt(key: K): Option[Long] = getWithExpireAt(key).map(_._2)
 
   /**
    * get time to live
@@ -97,24 +104,16 @@ class TTLTrieMap[K, V] {
    * @return true when the old key exists
    */
   def renameKey(oldKey: K, newKey: K): Boolean = synchronized {
-    get(oldKey) match {
-      case Some(v) =>
-        store.update(newKey, v)
-        expireAt.get(oldKey) foreach { t =>
-          expireAt.update(newKey, t)
-          expireAt.remove(oldKey)
-        }
-        store.remove(oldKey)
-        true
-      case None =>
-        false
-    }
+    (getWithExpireAt(oldKey) map { case (v, t) =>
+      update(newKey, v, t)
+      remove(oldKey)
+    }).isDefined
   }
 
   /**
    * get the lazy list of all keys
    */
-  def keys: Iterable[K] = store.keys
+  def keys: Iterable[K] = withTruncate()(store.keys)
 
   /**
    * clear all the keys/values
@@ -151,7 +150,7 @@ class TTLTrieMap[K, V] {
    * @param key key
    * @return true if the key exists
    */
-  def removeExpireAt(key: K): Boolean = withTruncate(){
+  def removeExpireAt(key: K): Boolean = withTruncate() {
     expireAt.remove(key)
     contains(key)
   }
