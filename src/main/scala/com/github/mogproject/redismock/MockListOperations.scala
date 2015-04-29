@@ -14,55 +14,38 @@ trait MockListOperations extends ListOperations with MockOperations with Storage
   // helper functions
   //
 
-  private[this] def set(key: Any, rawValue: Traversable[Bytes])(implicit format: Format): Unit = {
-    currentDB.update(Key(key), ListValue(rawValue))
+  private def setRaw(key: Any, rawValue: Traversable[Bytes])(implicit format: Format): Unit = {
+    currentDB.update(Key(key), ListValue(rawValue.toVector))
   }
 
-  private[this] def getRaw(key: Any)(implicit format: Format): Option[LIST.DataType] =
-    currentDB.get(Key(format.apply(key))).map(_.as(LIST))
+  private def getRaw(key: Any)(implicit format: Format): Option[LIST.DataType] = currentDB.get(Key(key)).map(_.as(LIST))
 
-  private[this] def getRawOrEmpty(key: Any)(implicit format: Format): LIST.DataType =
+  private def getRawOrEmpty(key: Any)(implicit format: Format): LIST.DataType =
     getRaw(key).getOrElse(Vector.empty[Bytes])
 
   // LPUSH (Variadic: >= 2.4)
   // add values to the head of the list stored at key
-  override def lpush(key: Any, value: Any, values: Any*)(implicit format: Format): Option[Long] = {
-    currentDB.synchronized {
-      val v = (value :: values.toList).map(Bytes.apply).toVector ++ getRawOrEmpty(key)
-      set(key, v)
-      Some(v.size)
-    }
+  override def lpush(key: Any, value: Any, values: Any*)(implicit format: Format): Option[Long] = withDB {
+    val v = (value :: values.toList).map(Bytes.apply).toVector ++ getRawOrEmpty(key)
+    setRaw(key, v)
+    Some(v.size)
   }
 
   // LPUSHX (Variadic: >= 2.4)
-  // add value to the tail of the list stored at key
-  override def lpushx(key: Any, value: Any)(implicit format: Format): Option[Long] = {
-    currentDB.synchronized {
-      val v = Vector(Bytes(value)) ++ getRawOrEmpty(key)
-      set(key, v)
-      Some(v.size)
-    }
-  }
+  // add value to the head of the list stored at key
+  override def lpushx(key: Any, value: Any)(implicit format: Format): Option[Long] = lpush(key, value)
 
   // RPUSH (Variadic: >= 2.4)
   // add values to the tail of the list stored at key
-  override def rpush(key: Any, value: Any, values: Any*)(implicit format: Format): Option[Long] = {
-    currentDB.synchronized {
-      val v = getRawOrEmpty(key) ++ (value :: values.toList).map(Bytes.apply).toVector
-      set(key, v)
-      Some(v.size)
-    }
+  override def rpush(key: Any, value: Any, values: Any*)(implicit format: Format): Option[Long] = withDB {
+    val v = getRawOrEmpty(key) ++ (value :: values.toList).map(Bytes.apply).toVector
+    setRaw(key, v)
+    Some(v.size)
   }
 
   // RPUSHX (Variadic: >= 2.4)
   // add value to the tail of the list stored at key
-  override def rpushx(key: Any, value: Any)(implicit format: Format): Option[Long] = {
-    currentDB.synchronized {
-      val v = getRawOrEmpty(key) ++ Vector(Bytes(value))
-      set(key, v)
-      Some(v.size)
-    }
-  }
+  override def rpushx(key: Any, value: Any)(implicit format: Format): Option[Long] = rpush(key, value)
 
   // LLEN
   // return the length of the list stored at the specified key.
@@ -75,19 +58,14 @@ trait MockListOperations extends ListOperations with MockOperations with Storage
   // Start and end are zero-based indexes.
   override def lrange[A](key: Any, start: Int, end: Int)(implicit format: Format, parse: Parse[A]): Option[List[Option[A]]] = {
     getRaw(key) map {
-      _.sliceFromTo(start, end).map(bs => Some(bs.parse(parse))).toList
+      _.sliceFromTo(start, end).map(_.parseOption(parse)).toList
     }
   }
 
   // LTRIM
   // Trim an existing list so that it will contain only the specified range of elements specified.
-  override def ltrim(key: Any, start: Int, end: Int)(implicit format: Format): Boolean = currentDB.synchronized {
-    getRaw(key) match {
-      case Some(xs) =>
-        set(key, xs.slice(start, end + 1))
-        true
-      case None => false
-    }
+  override def ltrim(key: Any, start: Int, end: Int)(implicit format: Format): Boolean = withDB {
+    getRaw(key).map { xs => setRaw(key, xs.slice(start, end + 1))}.isDefined
   }
 
   // LINDEX
@@ -99,16 +77,10 @@ trait MockListOperations extends ListOperations with MockOperations with Storage
   // LSET
   // set the list element at index with the new value. Out of range indexes will generate an error
   override def lset(key: Any, index: Int, value: Any)(implicit format: Format): Boolean =
-    getRaw(key) match {
-      case Some(xs) =>
-        if (index < 0 || xs.length <= index) {
-          throw new IndexOutOfBoundsException("index out of range")
-        }
-        set(key, xs.updated(index, Bytes(value)))
-        true
-      case _ =>
-        false
-    }
+    getRaw(key).map { xs =>
+      if (index < 0 || xs.length <= index) {throw new IndexOutOfBoundsException("index out of range")}
+      setRaw(key, xs.updated(index, Bytes(value)))
+    }.isDefined
 
   // LREM
   // Removes the first count occurrences of elements equal to value from the list stored at key.
@@ -124,7 +96,7 @@ trait MockListOperations extends ListOperations with MockOperations with Storage
       case _ => sofar.reverse ::: xs
     }
 
-    currentDB.synchronized {
+    withDB {
       for {
         xs <- getRaw(key)
       } yield {
@@ -133,7 +105,7 @@ trait MockListOperations extends ListOperations with MockOperations with Storage
           case _ if count == 0 => f(xs.toList, xs.length, Bytes(value), Nil)
           case _ => f(xs.toList, count, Bytes(value), Nil)
         }).toVector
-        set(key, ys)
+        setRaw(key, ys)
         xs.length - ys.length
       }
     }
@@ -141,41 +113,40 @@ trait MockListOperations extends ListOperations with MockOperations with Storage
 
   // LPOP
   // atomically return and remove the first (LPOP) or last (RPOP) element of the list
-  override def lpop[A](key: Any)(implicit format: Format, parse: Parse[A]): Option[A] = currentDB.synchronized {
+  override def lpop[A](key: Any)(implicit format: Format, parse: Parse[A]): Option[A] = withDB {
     for {
       v <- getRaw(key)
       x <- v.headOption
     } yield {
-      set(key, v.tail)
+      setRaw(key, v.tail)
       x.parse(parse)
     }
   }
 
   // RPOP
   // atomically return and remove the first (LPOP) or last (RPOP) element of the list
-  override def rpop[A](key: Any)(implicit format: Format, parse: Parse[A]): Option[A] = currentDB.synchronized {
+  override def rpop[A](key: Any)(implicit format: Format, parse: Parse[A]): Option[A] = withDB {
     for {
       v <- getRaw(key)
       x <- v.lastOption
     } yield {
-      set(key, v.init)
+      setRaw(key, v.init)
       x.parse(parse)
     }
   }
 
   // RPOPLPUSH
   // TBD
-  override def rpoplpush[A](srcKey: Any, dstKey: Any)(implicit format: Format, parse: Parse[A]): Option[A] =
-    currentDB.synchronized {
-      for {
-        v <- getRaw(srcKey)
-        x <- v.lastOption
-      } yield {
-        set(srcKey, v.init)
-        lpushx(dstKey, x.toArray)
-        x.parse(parse)
-      }
+  override def rpoplpush[A](srcKey: Any, dstKey: Any)(implicit format: Format, parse: Parse[A]): Option[A] = withDB {
+    for {
+      v <- getRaw(srcKey)
+      x <- v.lastOption
+    } yield {
+      setRaw(srcKey, v.init)
+      lpushx(dstKey, x.toArray)
+      x.parse(parse)
     }
+  }
 
   override def brpoplpush[A](srcKey: Any, dstKey: Any, timeoutInSeconds: Int)(implicit format: Format, parse: Parse[A]): Option[A] = {
     @tailrec

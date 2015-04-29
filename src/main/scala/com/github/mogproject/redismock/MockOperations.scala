@@ -37,7 +37,7 @@ trait MockOperations extends Operations with Storage { self: Redis =>
   override def keys[A](pattern: Any = "*")(implicit format: Format, parse: Parse[A]): Option[List[Option[A]]] = {
     val r = StringUtil.globToRegex(pattern.toString)
     println(r)
-    Some(currentDB.keys.withFilter(k => k.k.toString.matches(r)).map(k => k.k.parseOption(parse)).toList)
+    Some(currentDB.keys.withFilter(k => k.k.parse().matches(r)).map(k => k.k.parseOption(parse)).toList)
   }
 
   // RANDKEY

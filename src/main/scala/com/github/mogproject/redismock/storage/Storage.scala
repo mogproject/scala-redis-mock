@@ -20,6 +20,12 @@ trait Storage {
    * get specified database in the current node
    */
   def getDB(db: Int): Database = currentNode.getOrElseUpdate(db, new Database)
+
+  /**
+   * syntax sugar for executing atomic tasks with current DB
+   * @param thunk atomic tasks
+   */
+  def withDB[A](thunk: => A): A = { currentDB.synchronized(thunk) }
 }
 
 object Storage {
