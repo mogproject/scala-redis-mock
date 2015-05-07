@@ -2,6 +2,7 @@ package com.github.mogproject.redismock.entity
 
 import com.redis.serialization.{Format, Parse}
 import com.redis.serialization.Parse.parseDefault
+import scala.annotation.tailrec
 import scala.collection.immutable.VectorBuilder
 import scala.collection.mutable
 import scala.util.Try
@@ -16,7 +17,8 @@ case class Bytes(value: Vector[Byte])
   with scala.collection.immutable.IndexedSeq[Byte]
   with scala.collection.TraversableLike[Byte, Bytes]
   with scala.collection.IndexedSeqLike[Byte, Bytes]
-  with scala.Serializable {
+  with scala.Serializable
+  with Ordered[Bytes] {
 
   override def newBuilder: mutable.Builder[Byte, Bytes] = new BytesBuilder
 
@@ -56,6 +58,22 @@ case class Bytes(value: Vector[Byte])
   })
 
   override def hashCode: Int = value.hashCode
+
+  private def byte2UnsignedInt(b: Byte): Int = (b.toInt + 256) % 256
+
+  override def compare(that: Bytes): Int = {
+    @tailrec
+    def f(v: Vector[Byte], w: Vector[Byte], i: Int): Int = {
+      if (v.length == i || w.length == i) {
+        v.length - w.length
+      } else if (v(i) == w(i)) {
+        f(v, w, i + 1)
+      } else {
+        byte2UnsignedInt(v(i)) - byte2UnsignedInt(w(i))
+      }
+    }
+    f(value, that.value, 0)
+  }
 
   def newString = new String(value.toArray)
 }
