@@ -2,6 +2,7 @@ package com.github.mogproject.redismock.entity
 
 import com.redis.serialization.{Format, Parse}
 import com.redis.serialization.Parse.parseDefault
+import scala.annotation.tailrec
 import scala.collection.immutable.VectorBuilder
 import scala.collection.mutable
 import scala.util.Try
@@ -16,7 +17,8 @@ case class Bytes(value: Vector[Byte])
   with scala.collection.immutable.IndexedSeq[Byte]
   with scala.collection.TraversableLike[Byte, Bytes]
   with scala.collection.IndexedSeqLike[Byte, Bytes]
-  with scala.Serializable {
+  with scala.Serializable
+  with Ordered[Bytes] {
 
   override def newBuilder: mutable.Builder[Byte, Bytes] = new BytesBuilder
 
@@ -55,7 +57,28 @@ case class Bytes(value: Vector[Byte])
     case _ => false
   })
 
-  override def hashCode: Int = value.hashCode
+  override def hashCode(): Int = value.hashCode()
+
+  private def byte2UnsignedInt(b: Byte): Int = (b.toInt + 256) % 256
+
+  override def compare(that: Bytes): Int = {
+    @tailrec
+    def f(v: Seq[Byte], w: Seq[Byte], i: Int): Int = {
+      if (v.length == i || w.length == i) {
+        v.length - w.length
+      } else if (v(i) == w(i)) {
+        f(v, w, i + 1)
+      } else {
+        byte2UnsignedInt(v(i)) - byte2UnsignedInt(w(i))
+      }
+    }
+    (this.isInstanceOf[Bytes.MaxValue], that.isInstanceOf[Bytes.MaxValue]) match {
+      case (true, true) => 0
+      case (true, false) => 1
+      case (false, true) => -1
+      case _ => f(value, that.value, 0)
+    }
+  }
 
   def newString = new String(value.toArray)
 }
@@ -73,7 +96,11 @@ object Bytes {
 
   def fill(n: Int)(elem: => Byte): Bytes = Bytes(Vector.fill(n)(elem))
 
-  lazy val empty = Bytes(Vector.empty[Byte])
+  lazy val empty = Bytes(Vector.empty)
+
+  class MaxValue extends Bytes(Vector.empty)
+
+  lazy val MaxValue = new MaxValue
 }
 
 
