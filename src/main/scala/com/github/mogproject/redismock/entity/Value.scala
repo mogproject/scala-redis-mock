@@ -1,7 +1,5 @@
 package com.github.mogproject.redismock.entity
 
-import com.redis.serialization.Format
-
 
 trait Value {
   val valueType: ValueType
@@ -25,12 +23,3 @@ case class ListValue(value: LIST.DataType) extends Value { val valueType = LIST 
 case class SetValue(value: SET.DataType) extends Value { val valueType = SET }
 
 case class HashValue(value: HASH.DataType) extends Value { val valueType = HASH }
-
-
-object StringValue
-
-object ListValue
-
-object SetValue
-
-object HashValue

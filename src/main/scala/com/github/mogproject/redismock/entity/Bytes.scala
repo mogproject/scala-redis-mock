@@ -63,7 +63,7 @@ case class Bytes(value: Vector[Byte])
 
   override def compare(that: Bytes): Int = {
     @tailrec
-    def f(v: Vector[Byte], w: Vector[Byte], i: Int): Int = {
+    def f(v: Seq[Byte], w: Seq[Byte], i: Int): Int = {
       if (v.length == i || w.length == i) {
         v.length - w.length
       } else if (v(i) == w(i)) {
@@ -72,7 +72,12 @@ case class Bytes(value: Vector[Byte])
         byte2UnsignedInt(v(i)) - byte2UnsignedInt(w(i))
       }
     }
-    f(value, that.value, 0)
+    (this.isInstanceOf[Bytes.MaxValue], that.isInstanceOf[Bytes.MaxValue]) match {
+      case (true, true) => 0
+      case (true, false) => 1
+      case (false, true) => -1
+      case _ => f(value, that.value, 0)
+    }
   }
 
   def newString = new String(value.toArray)
@@ -91,7 +96,11 @@ object Bytes {
 
   def fill(n: Int)(elem: => Byte): Bytes = Bytes(Vector.fill(n)(elem))
 
-  lazy val empty = Bytes(Vector.empty[Byte])
+  lazy val empty = Bytes(Vector.empty)
+
+  class MaxValue extends Bytes(Vector.empty)
+
+  lazy val MaxValue = new MaxValue
 }
 
 
