@@ -57,7 +57,7 @@ case class Bytes(value: Vector[Byte])
     case _ => false
   })
 
-  override def hashCode: Int = value.hashCode
+  override def hashCode(): Int = value.hashCode()
 
   private def byte2UnsignedInt(b: Byte): Int = (b.toInt + 256) % 256
 
