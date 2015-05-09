@@ -17,7 +17,7 @@ trait MockRedisCommand extends Redis with MockOperations
 with MockStringOperations
 with MockListOperations
 with MockSetOperations
-//with MockSortedSetOperations
+with MockSortedSetOperations
 with MockHashOperations
 //with MockEvalOperations
 //with MockPubOperations

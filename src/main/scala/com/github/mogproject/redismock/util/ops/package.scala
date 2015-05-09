@@ -20,6 +20,8 @@ package object ops {
       f(self)
       self
     }
+
+    final def mapWhenTrue(b: Boolean)(f: A => A): A = if (b) f(self) else self
   }
 
   implicit class BooleanOps(val self: Boolean) extends AnyVal {

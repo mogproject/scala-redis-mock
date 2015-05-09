@@ -37,7 +37,23 @@ with BeforeAndAfterAll {
     }
   }
 
-  describe("Bytes#fiil") {
+  describe("Bytes#compare") {
+    it("should return the result of comparison") {
+      Bytes().compare(Bytes()) shouldBe 0
+      Bytes().compare(Bytes(0)) should be < 0
+      Bytes(0).compare(Bytes()) should be > 0
+    }
+    it("should compare bits in unsigned") {
+      Bytes(-1).compare(Bytes(0)) should be > 0
+      Bytes(0, 1, 2, 3).compare(Bytes(0, 1, 2, -3)) should be < 0
+    }
+    it("should enable comparison with Bytes") {
+      Bytes(1, 2, 3) should be < Bytes(1, 2, 4)
+      Bytes(1, 2, 3) should be > Bytes(1, 2)
+    }
+  }
+
+  describe("Bytes#fill") {
     it("should fill value of the specified number") {
       Bytes.fill(-1)(3.toByte) shouldBe Bytes.empty
       Bytes.fill(0)(3.toByte) shouldBe Bytes.empty
