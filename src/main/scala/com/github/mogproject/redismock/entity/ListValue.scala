@@ -1,5 +1,7 @@
 package com.github.mogproject.redismock.entity
 
+import com.github.mogproject.redismock.util.Bytes
+
 
 case class ListValue(data: Vector[Bytes] = Vector.empty) extends Value
 

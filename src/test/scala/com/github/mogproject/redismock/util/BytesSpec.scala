@@ -1,9 +1,6 @@
-package com.github.mogproject.redismock.entity
+package com.github.mogproject.redismock.util
 
-import org.scalatest.FunSpec
-import org.scalatest.BeforeAndAfterEach
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Matchers
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSpec, Matchers}
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 
 
@@ -51,6 +48,11 @@ with BeforeAndAfterAll {
       Bytes(1, 2, 3) should be < Bytes(1, 2, 4)
       Bytes(1, 2, 3) should be > Bytes(1, 2)
     }
+    it("should compare with MaxValue") {
+      Bytes().compare(Bytes.MaxValue) shouldBe -1
+      Bytes.MaxValue.compare(Bytes(255, 255, 255)) shouldBe 1
+      Bytes.MaxValue.compare(Bytes.MaxValue) shouldBe 0
+    }
   }
 
   describe("Bytes#fill") {
@@ -62,11 +64,26 @@ with BeforeAndAfterAll {
     }
   }
 
+  describe("Bytes#++") {
+    it("should append bytes") {
+      Bytes(1) ++ Bytes(2, 3, 4) shouldBe Bytes(1, 2, 3, 4)
+      Bytes(1) ++ Seq[Byte](2, 3, 4) shouldBe Bytes(1, 2, 3, 4)
+    }
+  }
+
   describe("Bytes#newString") {
     it("should make string from bytes") {
       Bytes.empty.newString shouldBe ""
       Bytes(97).newString shouldBe "a"
       Bytes(97, 98, 99, 100, 101).newString shouldBe "abcde"
+    }
+  }
+
+  describe("Bytes#toString") {
+    it("should describe contents") {
+      Bytes.empty.toString shouldBe "Bytes()"
+      Bytes(97).toString shouldBe "Bytes(97)"
+      Bytes(97, 98, 99, 100, 101, -1).toString shouldBe "Bytes(97, 98, 99, 100, 101, 255)"
     }
   }
 
