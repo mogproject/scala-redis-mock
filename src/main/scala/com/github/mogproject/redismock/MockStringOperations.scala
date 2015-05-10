@@ -34,13 +34,7 @@ trait MockStringOperations
 
   private def getFloatOrZero(key: Any)(implicit format: Format): Float = getFloat(key).getOrElse(0.0f)
 
-
-  private def getTime(time: SecondsOrMillis): Long = time match {
-    case Seconds(v) => v * 1000L
-    case Millis(v) => v
-  }
-
-  def bitBinOp(op: (Int, Int) => Int)(a: Bytes, b: Bytes): Bytes = {
+  private def bitBinOp(op: (Int, Int) => Int)(a: Bytes, b: Bytes): Bytes = {
     val n = math.max(a.length, b.length)
     Bytes(a.resized(n).zip(b.resized(n)) map { case (x, y) => op(x, y).toByte })
   }
