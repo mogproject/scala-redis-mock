@@ -177,11 +177,13 @@ with BeforeAndAfterAll {
       r.lpush("list-1", "foo", "bar")
       r.sadd("set-1", 10)
       r.hset("hash-1", "description", "one")
+      r.zadd("zset-1", 1.23, 20)
 
       r.getType("list-x") shouldBe Some("none")
       r.getType("list-1") shouldBe Some("list")
       r.getType("set-1") shouldBe Some("set")
       r.getType("hash-1") shouldBe Some("hash")
+      r.getType("zset-1") shouldBe Some("zset")
     }
 
   }

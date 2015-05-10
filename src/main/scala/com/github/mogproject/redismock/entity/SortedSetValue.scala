@@ -9,8 +9,6 @@ case class SortedSetValue(data: SortedSet[(Double, Bytes)], index: Map[Bytes, Do
 
   def size: Int = index.size
 
-  def updated(score: Double, value: Bytes): SortedSetValue = this + (score -> value)
-
   def +(sv: (Double, Bytes)): SortedSetValue = {
     val (score, value) = sv
     val newData = subtractData(value) + ((score, value))

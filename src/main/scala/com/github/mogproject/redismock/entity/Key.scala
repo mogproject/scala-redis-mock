@@ -7,11 +7,8 @@ import com.redis.serialization.Format
  * key data should be stored as vector to calculate accurate hash code
  * @param k key binary
  */
-case class Key(k: Bytes) {
-}
+case class Key(k: Bytes)
 
 object Key {
-  def apply(k: Array[Byte]) = new Key(Bytes(k))
-
   def apply(k: Any)(implicit format: Format): Key = new Key(Bytes(k))
 }
