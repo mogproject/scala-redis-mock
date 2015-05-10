@@ -81,7 +81,7 @@ class Bytes(val value: Vector[Byte])
 
   def newString = new String(value.toArray)
 
-  override def toString = s"Bytes(${value})"
+  override def toString = s"""Bytes(${value.map(_.toUnsignedInt).mkString(", ")})"""
 }
 
 /**
