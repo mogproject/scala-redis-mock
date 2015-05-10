@@ -14,8 +14,12 @@ trait MockOperations extends Operations with Storage {
 
   lazy val random = new Random(12345L)
 
-  // SORT
-  // sort keys in a set, and optionally pull values for them
+  /**
+   * Returns or stores the elements contained in the list, set or sorted set at key. By default, sorting is numeric and
+   * elements are compared by their value interpreted as double precision floating point number.
+   *
+   * @see http://redis.io/commands/sort
+   */
   override def sort[A](key: String,
                        limit: Option[(Int, Int)] = None,
                        desc: Boolean = false,
@@ -23,8 +27,12 @@ trait MockOperations extends Operations with Storage {
                        by: Option[String] = None,
                        get: List[String] = Nil)(implicit format: Format, parse: Parse[A]): Option[List[Option[A]]] = ???
 
-  // SORT with STORE
-  // sort keys in a set, and store result in the supplied key
+  /**
+   * SORT with STORE
+   * sort keys in a set, and store result in the supplied key
+   *
+   * @see http://redis.io/commands/sort
+   */
   override def sortNStore[A](key: String,
                              limit: Option[(Int, Int)] = None,
                              desc: Boolean = false,
@@ -33,98 +41,196 @@ trait MockOperations extends Operations with Storage {
                              get: List[String] = Nil,
                              storeAt: String)(implicit format: Format, parse: Parse[A]): Option[Long] = ???
 
-  // KEYS
-  // returns all the keys matching the glob-style pattern.
+  /**
+   * Returns all keys matching pattern.
+   *
+   * While the time complexity for this operation is O(N), the constant times are fairly low. For example, Redis
+   * running on an entry level laptop can scan a 1 million key database in 40 milliseconds.
+   *
+   * @see http://redis.io/commands/keys
+   */
   override def keys[A](pattern: Any = "*")(implicit format: Format, parse: Parse[A]): Option[List[Option[A]]] = {
     val r = StringUtil.globToRegex(pattern.toString)
     currentDB.keys.view.map(_.k).filter(_.parse(Parse.parseStringSafe).matches(r))
       .map(_.parseOption(parse)).toList |> Some.apply
   }
 
-  // RANDKEY
-  // return a randomly selected key from the currently selected DB.
-  @deprecated("use randomkey", "2.8") override def randkey[A](implicit parse: Parse[A]): Option[A] = randomkey[A]
+  /**
+   * RANDKEY (deprecated)
+   */
+  @deprecated("use randomkey", "2.8")
+  override def randkey[A](implicit parse: Parse[A]): Option[A] = randomkey[A]
 
-  // RANDOMKEY
-  // return a randomly selected key from the currently selected DB.
+  /**
+   * Return a random key from the currently selected database.
+   *
+   * @see http://redis.io/commands/randomkey
+   */
   override def randomkey[A](implicit parse: Parse[A]): Option[A] = {
     // TODO: make random after implementing 'scan'
     currentDB.keys.headOption.map(_.k.parse(parse))
   }
 
-  // RENAME (oldkey, newkey)
-  // atomically renames the key oldkey to newkey.
+  /**
+   * Renames key to newkey. It returns an error when the source and destination names are the same, or when key does not
+   * exist. If newkey already exists it is overwritten, when this happens RENAME executes an implicit DEL operation, so
+   * if the deleted key contains a very big value it may cause high latency even if RENAME itself is usually a
+   * constant-time operation.
+   *
+   * @see http://redis.io/commands/rename
+   */
   override def rename(oldkey: Any, newkey: Any)(implicit format: Format): Boolean =
-    currentDB.renameKey(Key(oldkey), Key(newkey)) whenFalse {throw new RuntimeException("ERR no such key")}
+    currentDB.renameKey(Key(oldkey), Key(newkey)) whenFalse {
+      throw new RuntimeException("ERR no such key")
+    }
 
-  // RENAMENX (oldkey, newkey)
-  // rename oldkey into newkey but fails if the destination key newkey already exists.
+  /**
+   * Renames key to newkey if newkey does not yet exist. It returns an error under the same conditions as RENAME.
+   *
+   * @see http://redis.io/commands/renamenx
+   */
   override def renamenx(oldkey: Any, newkey: Any)(implicit format: Format): Boolean = withDB {
     !exists(newkey) && rename(oldkey, newkey)
   }
 
-  // DBSIZE
-  // return the size of the db.
+  /**
+   * Return the number of keys in the currently-selected database.
+   *
+   * @see http://redis.io/commands/dbsize
+   */
   override def dbsize: Option[Long] = Some(currentDB.size)
 
-  // EXISTS (key)
-  // test if the specified key exists.
+  /**
+   * Returns if key exists.
+   *
+   * @see http://redis.io/commands/exists
+   */
   override def exists(key: Any)(implicit format: Format): Boolean = Key(key) |> currentDB.contains
 
-  // DELETE (key1 key2 ..)
-  // deletes the specified keys.
+  /**
+   * Removes the specified keys. A key is ignored if it does not exist.
+   *
+   * @see http://redis.io/commands/del
+   */
   override def del(key: Any, keys: Any*)(implicit format: Format): Option[Long] = {
     val oldSize = currentDB.size
-    (key :: keys.toList) foreach {Key(_) |> currentDB.remove}
+    (key :: keys.toList) foreach {
+      Key(_) |> currentDB.remove
+    }
     Some(oldSize - currentDB.size)
   }
 
-  // TYPE (key)
-  // return the type of the value stored at key in form of a string.
+  /**
+   * Returns the string representation of the type of the value stored at key. The different types that can be returned
+   * are: string, list, set, zset and hash.
+   *
+   * @see http://redis.io/commands/type
+   */
   override def getType(key: Any)(implicit format: Format): Option[String] =
-    (Key(key) |> currentDB.get).map(_.valueType.toString.toLowerCase).getOrElse("none") |> Some.apply
+    (Key(key) |> currentDB.get).map(_.typeName).getOrElse("none") |> Some.apply
 
-  // EXPIRE (key, expiry)
-  // sets the expire time (in sec.) for the specified key.
+  /**
+   * Set a timeout on key. After the timeout has expired, the key will automatically be deleted. A key with an
+   * associated timeout is often said to be volatile in Redis terminology.
+   *
+   * @see http://redis.io/commands/expire
+   */
   override def expire(key: Any, ttl: Int)(implicit format: Format): Boolean = pexpire(key, ttl * 1000)
 
-  // PEXPIRE (key, expiry)
-  // sets the expire time (in milli sec.) for the specified key.
+  /**
+   * This command works exactly like EXPIRE but the time to live of the key is specified in milliseconds instead of
+   * seconds.
+   *
+   * @see http://redis.io/commands/pexpire
+   */
   override def pexpire(key: Any, ttlInMillis: Int)(implicit format: Format): Boolean =
     currentDB.updateTTL(Key(key), ttlInMillis)
 
-  // EXPIREAT (key, unix timestamp)
-  // sets the expire time for the specified key.
+  /**
+   * EXPIREAT has the same effect and semantic as EXPIRE, but instead of specifying the number of seconds representing
+   * the TTL (time to live), it takes an absolute Unix timestamp (seconds since January 1, 1970).
+   *
+   * @see http://redis.io/commands/expireat
+   */
   override def expireat(key: Any, timestamp: Long)(implicit format: Format): Boolean = pexpireat(key, timestamp * 1000L)
 
-  // PEXPIREAT (key, unix timestamp)
-  // sets the expire timestamp in millis for the specified key.
+  /**
+   * PEXPIREAT has the same effect and semantic as EXPIREAT, but the Unix time at which the key will expire is specified
+   * in milliseconds instead of seconds.
+   *
+   * @see http://redis.io/commands/pexpireat
+   */
   override def pexpireat(key: Any, timestampInMillis: Long)(implicit format: Format): Boolean =
     currentDB.updateExpireAt(Key(key), timestampInMillis)
 
-  // TTL (key)
-  // returns the remaining time to live of a key that has a timeout
+  /**
+   * Returns the remaining time to live of a key that has a timeout. This introspection capability allows a Redis client
+   * to check how many seconds a given key will continue to be part of the dataset.
+   *
+   * In Redis 2.6 or older the command returns -1 if the key does not exist or if the key exist but has no associated
+   * expire.
+   *
+   * Starting with Redis 2.8 the return value in case of error changed:
+   *
+   * - The command returns -2 if the key does not exist.
+   * - The command returns -1 if the key exists but has no associated expire.
+   *
+   * See also the PTTL command that returns the same information with milliseconds resolution (Only available in Redis
+   * 2.6 or greater).
+   *
+   * @see http://redis.io/commands/ttl
+   */
   override def ttl(key: Any)(implicit format: Format): Option[Long] =
     pttl(key).map(x => if (x < 0L) -1L else math.round(x / 1000.0))
 
-  // PTTL (key)
-  // returns the remaining time to live of a key that has a timeout in millis
+  /**
+   * Like TTL this command returns the remaining time to live of a key that has an expire set, with the sole difference
+   * that TTL returns the amount of remaining time in seconds while PTTL returns it in milliseconds.
+   *
+   * In Redis 2.6 or older the command returns -1 if the key does not exist or if the key exist but has no associated
+   * expire.
+   *
+   * Starting with Redis 2.8 the return value in case of error changed:
+   *
+   * - The command returns -2 if the key does not exist.
+   * - The command returns -1 if the key exists but has no associated expire.
+   *
+   * @see http://redis.io/commands/pttl
+   */
   override def pttl(key: Any)(implicit format: Format): Option[Long] = currentDB.getTTL(Key(key))
 
-  // SELECT (index)
-  // selects the DB to connect, defaults to 0 (zero).
-  override def select(index: Int): Boolean = (0 <= index) whenTrue {db = index}
+  /**
+   * Select the DB with having the specified zero-based numeric index. New connections always use DB 0.
+   *
+   * @see http://redis.io/commands/select
+   */
+  override def select(index: Int): Boolean = (0 <= index) whenTrue (db = index)
 
-  // FLUSHDB the DB
-  // removes all the DB data.
+  /**
+   * Delete all the keys of the currently selected DB. This command never fails.
+   *
+   * The time-complexity for this operation is O(N), N being the number of keys in the database.
+   *
+   * @see http://redis.io/commands/flushdb
+   */
   override def flushdb: Boolean = true whenTrue currentDB.clear()
 
-  // FLUSHALL the DB's
-  // removes data from all the DB's.
+  /**
+   * Delete all the keys of all the existing databases, not just the currently selected one. This command never fails.
+   *
+   * The time-complexity for this operation is O(N), N being the number of keys in the database.
+   *
+   * @see http://redis.io/commands/flushall
+   */
   override def flushall: Boolean = true whenTrue currentNode.clear()
 
-  // MOVE
-  // Move the specified key from the currently selected DB to the specified destination DB.
+  /**
+   * Move key from the currently selected database (see SELECT) to the specified destination database. When key already
+   * exists in the destination database, or it does not exist in the source database, it does nothing. It is possible to
+   * use MOVE as a locking primitive because of this.
+   *
+   * @see http://redis.io/commands/move
+   */
   override def move(key: Any, db: Int)(implicit format: Format): Boolean = if (this.db == db) {
     false
   } else withDB {
@@ -138,21 +244,49 @@ trait MockOperations extends Operations with Storage {
     }.isDefined
   }
 
-  // QUIT
-  // exits the server.
+  /**
+   * Ask the server to close the connection. The connection is closed as soon as all pending replies have been written
+   * to the client.
+   *
+   * @see http://redis.io/commands/quit
+   */
   override def quit: Boolean = disconnect
 
-  // AUTH
-  // auths with the server.
+  /**
+   * Request for authentication in a password-protected Redis server. Redis can be instructed to require a password
+   * before allowing clients to execute commands. This is done using the requirepass directive in the configuration
+   * file.
+   *
+   * If password matches the password in the configuration file, the server replies with the OK status code and starts
+   * accepting commands. Otherwise, an error is returned and the clients needs to try a new password.
+   *
+   * @see http://redis.io/commands/auth
+   */
   override def auth(secret: Any)(implicit format: Format): Boolean = true // always returns true in the mock
 
-  // PERSIST (key)
-  // Remove the existing timeout on key, turning the key from volatile (a key with an expire set)
-  // to persistent (a key that will never expire as no timeout is associated).
+  /**
+   * Remove the existing timeout on key, turning the key from volatile (a key with an expire set) to persistent (a key
+   * that will never expire as no timeout is associated).
+   *
+   * @see http://redis.io/commands/persist
+   */
   override def persist(key: Any)(implicit format: Format): Boolean = currentDB.removeExpireAt(Key(key))
 
-  // SCAN
-  // Incrementally iterate the keys space (since 2.8)
+  /**
+   * The SCAN command and the closely related commands SSCAN, HSCAN and ZSCAN are used in order to incrementally iterate
+   * over a collection of elements.
+   *
+   * - SCAN iterates the set of keys in the currently selected Redis database.
+   * - SSCAN iterates elements of Sets types.
+   * - HSCAN iterates fields of Hash types and their associated values.
+   * - ZSCAN iterates elements of Sorted Set types and their associated scores.
+   *
+   * Since these commands allow for incremental iteration, returning only a small number of elements per call, they can
+   * be used in production without the downside of commands like KEYS or SMEMBERS that may block the server for a long
+   * time (even several seconds) when called against big collections of keys or elements.
+   *
+   * @see http://redis.io/commands/scan
+   */
   override def scan[A](cursor: Int, pattern: Any = "*", count: Int = 10)
                       (implicit format: Format, parse: Parse[A])
   : Option[(Option[Int], Option[List[Option[A]]])] =

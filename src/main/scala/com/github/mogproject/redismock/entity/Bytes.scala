@@ -12,7 +12,7 @@ import scala.util.Try
  * data should be stored as vector to compare accurately
  * @param value value binary
  */
-case class Bytes(value: Vector[Byte])
+class Bytes(val value: Vector[Byte])
   extends scala.collection.AbstractSeq[Byte]
   with scala.collection.immutable.IndexedSeq[Byte]
   with scala.collection.TraversableLike[Byte, Bytes]
@@ -81,6 +81,8 @@ case class Bytes(value: Vector[Byte])
   }
 
   def newString = new String(value.toArray)
+
+  override def toString = s"Bytes(${value})"
 }
 
 /**
