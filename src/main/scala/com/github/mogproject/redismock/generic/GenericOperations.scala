@@ -2,7 +2,7 @@ package com.github.mogproject.redismock.generic
 
 import com.github.mogproject.redismock.entity._
 import com.github.mogproject.redismock.storage.Storage
-import com.redis.Redis
+import com.redis.{Millis, Seconds, SecondsOrMillis, Redis}
 import com.redis.serialization.Format
 
 import scala.reflect.ClassTag
@@ -25,4 +25,8 @@ trait GenericOperations extends Storage {
                                                    (implicit format: Format, companion: ValueCompanion[A]): A =
     getRaw(key).getOrElse(companion.empty)
 
+  protected def getTime(time: SecondsOrMillis): Long = time match {
+    case Seconds(v) => v * 1000L
+    case Millis(v) => v
+  }
 }

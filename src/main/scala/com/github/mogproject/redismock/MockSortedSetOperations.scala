@@ -3,6 +3,7 @@ package com.github.mogproject.redismock
 import com.github.mogproject.redismock.entity._
 import com.github.mogproject.redismock.generic.GenericOperations
 import com.github.mogproject.redismock.storage.Storage
+import com.github.mogproject.redismock.util.Bytes
 import com.github.mogproject.redismock.util.ops._
 import com.redis.RedisClient.{ASC, SortOrder, Aggregate, SUM, MIN, MAX}
 import com.redis.{SortedSetOperations, Redis}
