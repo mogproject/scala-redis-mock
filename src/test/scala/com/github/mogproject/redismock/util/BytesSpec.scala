@@ -1,10 +1,6 @@
-package com.github.mogproject.redismock.entity
+package com.github.mogproject.redismock.util
 
-import com.github.mogproject.redismock.util.{BytesBuilder, Bytes}
-import org.scalatest.FunSpec
-import org.scalatest.BeforeAndAfterEach
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Matchers
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSpec, Matchers}
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 
 
