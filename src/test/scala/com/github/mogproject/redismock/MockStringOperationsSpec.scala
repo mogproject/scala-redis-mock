@@ -512,4 +512,15 @@ class MockStringOperationsSpec extends FunSpec with Matchers with BeforeAndAfter
       }
     }
   }
+
+  describe("set if not exist (additional)") {
+    it("should set key/value pairs with exclusiveness and expire") {
+      r.set("amit-1", "mor", "nx", "px", 6000)
+      r.get("amit-1") match {
+        case Some(s: String) => s should equal("mor")
+        case None => fail("should return mor")
+      }
+      r.del("amit-1")
+    }
+  }
 }
