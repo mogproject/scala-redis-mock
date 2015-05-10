@@ -194,6 +194,49 @@ class TTLTrieMapSpec extends FunSpec with Matchers {
         t.size shouldEqual 1
       }
     }
+  }
 
+  describe("equals") {
+    it("should return false with other types") {
+      TTLTrieMap.empty[String, Int] == "xyz" shouldBe false
+      val t = TTLTrieMap.empty[String, Int]
+      t.update("key", 10)
+      val u = TTLTrieMap.empty[String, String]
+      u.update("key", "10")
+      t == u shouldBe false
+    }
+    it("should check equality with TTLTrieMap") {
+      val t = TTLTrieMap.empty[String, Int]
+      val u = TTLTrieMap.empty[String, Int]
+      t == u shouldBe true
+
+      val now = System.currentTimeMillis()
+      t.update("k1", 10)
+      t.update("k2", 20, now + 1000000L)
+      t == u shouldBe false
+
+      u.update("k2", 20, now + 1000000L)
+      u.update("k1", 10)
+      t == u shouldBe true
+
+      t.update("k3", 30, 0L)  // will be removed immediately
+      t == u shouldBe true
+    }
+  }
+
+  describe("hashCode") {
+    it("should change with values") {
+      val t = TTLTrieMap.empty[String, Int]
+      val x1 = t.hashCode
+
+      t.update("k1", 10)
+      val x2 = t.hashCode
+      x1 == x2 shouldBe false
+
+      val now = System.currentTimeMillis()
+      t.updateExpireAt("k1", now + 1000000L)
+      val x3 = t.hashCode
+      x2 == x3 shouldBe false
+    }
   }
 }
