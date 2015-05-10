@@ -167,6 +167,7 @@ class TTLTrieMap[K, V] {
     f
   }
 
+  // Note: Because of the type erasure, it could happen to return true with different Key/Value types.
   override def equals(other: Any): Boolean = other match {
     case that: TTLTrieMap[K, V] => withTruncate()(this.store == that.store && this.expireAt == that.expireAt)
     case _ => false
