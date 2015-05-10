@@ -32,7 +32,7 @@ trait MockNodeOperations extends NodeOperations {
 
   // INFO
   // the info command returns different information and statistics about the server.
-  override def info =
+  override def info: Option[String] =
     throw new UnsupportedOperationException("server operation is not supported")
 
   // MONITOR
