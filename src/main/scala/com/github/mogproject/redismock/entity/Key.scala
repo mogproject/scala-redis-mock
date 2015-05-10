@@ -1,5 +1,6 @@
 package com.github.mogproject.redismock.entity
 
+import com.github.mogproject.redismock.util.Bytes
 import com.redis.serialization.Format
 
 /**

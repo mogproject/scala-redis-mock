@@ -3,6 +3,7 @@ package com.github.mogproject.redismock
 import com.github.mogproject.redismock.entity._
 import com.github.mogproject.redismock.generic.GenericOperations
 import com.github.mogproject.redismock.storage.Storage
+import com.github.mogproject.redismock.util.Bytes
 import com.github.mogproject.redismock.util.ops._
 import com.github.mogproject.redismock.util.Implicits._
 import com.redis._
@@ -39,20 +40,9 @@ trait MockStringOperations
     case Millis(v) => v
   }
 
-  // operations for Byte
-
-  /** Convert Byte object to unsigned Int */
-  private[this] def b2ui(b: Byte): Int = (256 + b) % 256
-
   def bitBinOp(op: (Int, Int) => Int)(a: Bytes, b: Bytes): Bytes = {
     val n = math.max(a.length, b.length)
     Bytes(a.resized(n).zip(b.resized(n)) map { case (x, y) => op(x, y).toByte })
-  }
-
-  /** Count number of 1-bit */
-  private[this] def popByte(x: Byte): Int = {
-    val s = (x & 0x11) + ((x >> 1) & 0x11) + ((x >> 2) & 0x11) + ((x >> 3) & 0x11)
-    (s & 15) + (s >> 4)
   }
 
 
@@ -306,7 +296,7 @@ trait MockStringOperations
    */
   override def getbit(key: Any, offset: Int)(implicit format: Format): Option[Int] = {
     val (n, m) = (offset / 8, 7 - offset % 8)
-    getRaw(key).map { v => if (v.data.length < n) 0 else (b2ui(v.data(n)) >> m) & 1 }
+    getRaw(key).map { v => if (v.data.length < n) 0 else (v.data(n).toUnsignedInt >> m) & 1 }
   }
 
   /**
@@ -327,8 +317,8 @@ trait MockStringOperations
     val (n, m) = (offset / 8, 7 - offset % 8)
 
     val v = getRawOrEmpty(key).data
-    val old = (b2ui(v.getOrElse(n)) >> m) & 1
-    val w: Bytes = v.updated(n, (b2ui(v.getOrElse(n)) & (0xff ^ (1 << m)) | (x << m)).toByte, 0)
+    val old = (v.getOrElse(n).toUnsignedInt >> m) & 1
+    val w: Bytes = v.updated(n, (v.getOrElse(n).toUnsignedInt & (0xff ^ (1 << m)) | (x << m)).toByte, 0)
     setRaw(key, StringValue(w))
     Some(old)
   }
@@ -347,7 +337,7 @@ trait MockStringOperations
    * @see http://redis.io/commands/bitcount
    */
   override def bitcount(key: Any, range: Option[(Int, Int)] = None)(implicit format: Format): Option[Int] =
-    getRaw(key).map(_.data.value.map(popByte).sum)
+    getRaw(key).map(_.data.value.map(_.popCount).sum)
 
   /**
    * Perform a bitwise operation between multiple keys (containing string values) and store the result in the

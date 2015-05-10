@@ -1,7 +1,8 @@
-package com.github.mogproject.redismock.entity
+package com.github.mogproject.redismock.util
 
-import com.redis.serialization.{Format, Parse}
+import com.github.mogproject.redismock.util.Implicits._
 import com.redis.serialization.Parse.parseDefault
+import com.redis.serialization.{Format, Parse}
 import scala.annotation.tailrec
 import scala.collection.immutable.VectorBuilder
 import scala.collection.mutable
@@ -59,8 +60,6 @@ class Bytes(val value: Vector[Byte])
 
   override def hashCode(): Int = value.hashCode()
 
-  private def byte2UnsignedInt(b: Byte): Int = (b.toInt + 256) % 256
-
   override def compare(that: Bytes): Int = {
     @tailrec
     def f(v: Seq[Byte], w: Seq[Byte], i: Int): Int = {
@@ -69,7 +68,7 @@ class Bytes(val value: Vector[Byte])
       } else if (v(i) == w(i)) {
         f(v, w, i + 1)
       } else {
-        byte2UnsignedInt(v(i)) - byte2UnsignedInt(w(i))
+        v(i).toUnsignedInt - w(i).toUnsignedInt
       }
     }
     (this.isInstanceOf[Bytes.MaxValue], that.isInstanceOf[Bytes.MaxValue]) match {

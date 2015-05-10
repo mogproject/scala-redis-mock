@@ -1,5 +1,6 @@
 package com.github.mogproject.redismock.entity
 
+import com.github.mogproject.redismock.util.{BytesBuilder, Bytes}
 import org.scalatest.FunSpec
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.BeforeAndAfterAll
