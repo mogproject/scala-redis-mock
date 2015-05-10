@@ -71,7 +71,7 @@ redis-cli shutdown
 |:-:|:-:|:-:|:--|
 |[x]|[x]|[ ]|Connection|
 |[ ]|[ ]|[ ]|Server|
-|[ ]|[ ]|[ ]|Scripting|
+|   |   |   |~~Scripting~~ Not supported|
 |[ ]|[ ]|[ ]|Pub/Sub|
-|[ ]|[ ]|[ ]|Transactions|
-|[ ]|[ ]|[ ]|Cluster|
+|   |   |   |~~Transactions~~ Not supported|
+|   |   |   |~~Cluster~~ Not supported|
