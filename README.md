@@ -70,7 +70,7 @@ redis-cli shutdown
 |started|feature impl|complete|feature|
 |:-:|:-:|:-:|:--|
 |[x]|[x]|[ ]|Connection|
-|[ ]|[ ]|[ ]|Server|
+|   |   |   |~~Server~~ Not supported|
 |   |   |   |~~Scripting~~ Not supported|
 |[ ]|[ ]|[ ]|Pub/Sub|
 |   |   |   |~~Transactions~~ Not supported|

@@ -198,7 +198,7 @@ with BeforeAndAfterAll {
   //
   // additional tests
   //
-  describe("zincrby (additional") {
+  describe("zincrby (additional)") {
     it("should increase score") {
       add()
 
