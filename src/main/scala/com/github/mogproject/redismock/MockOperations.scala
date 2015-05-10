@@ -232,13 +232,13 @@ trait MockOperations extends Operations with Storage {
    * @see http://redis.io/commands/move
    */
   override def move(key: Any, db: Int)(implicit format: Format): Boolean = if (this.db == db) {
-    false
+    throw new Exception("ERR source and destination objects are the same")
   } else withDB {
     val k = Key(key)
-    currentDB.getWithExpireAt(k).map { case (v, t) =>
+    currentDB.get(k).map { v =>
       val dst = getDB(db)
       dst.synchronized {
-        dst.update(k, v, t)
+        dst.update(k, v, None)
         currentDB.remove(k)
       }
     }.isDefined
@@ -262,7 +262,8 @@ trait MockOperations extends Operations with Storage {
    *
    * @see http://redis.io/commands/auth
    */
-  override def auth(secret: Any)(implicit format: Format): Boolean = true // always returns true in the mock
+  override def auth(secret: Any)(implicit format: Format): Boolean =
+    throw new Exception("ERR Client sent AUTH, but no password is set")  // always fails
 
   /**
    * Remove the existing timeout on key, turning the key from volatile (a key with an expire set) to persistent (a key

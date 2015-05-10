@@ -194,4 +194,16 @@ with BeforeAndAfterAll {
         List(("alan kay", 1940.0)))
     }
   }
+
+  //
+  // additional tests
+  //
+  describe("zincrby (additional") {
+    it("should increase score") {
+      add
+
+      zincrby("hackers", 100.0, "alan kay") shouldBe Some(2040.0)
+      zrangebyscoreWithScore("hackers", 2000, true, 2100, true, None).get shouldBe List(("alan kay", 2040.0))
+    }
+  }
 }
