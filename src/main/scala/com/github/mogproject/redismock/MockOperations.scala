@@ -112,7 +112,7 @@ trait MockOperations extends Operations with Storage {
                       (implicit format: Format, parse: Parse[A]): Option[List[Option[A]]] = withDB {
     currentDB.get(Key(key)) map { v =>
       Sorter(getBytesSeq(v)).setLookup(by).setAlpha(alpha).setOrder(desc).setLimit(limit).setGetter(get).result
-    }
+    } orElse Some(List.empty)
   }
 
   /**
@@ -128,7 +128,7 @@ trait MockOperations extends Operations with Storage {
                              by: Option[String] = None,
                              get: List[String] = Nil,
                              storeAt: String)(implicit format: Format, parse: Parse[A]): Option[Long] = withDB {
-    val xs = sort(key, limit, desc, alpha, by, get).map(_.flatten).getOrElse(Nil)
+    val xs = sort(key, limit, desc, alpha, by, get).map(_.flatten).get
     currentDB.update(Key(storeAt), ListValue(xs.map(Bytes.apply)))
     Some(xs.length)
   }
