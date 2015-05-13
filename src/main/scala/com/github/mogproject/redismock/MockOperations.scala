@@ -112,7 +112,7 @@ trait MockOperations extends Operations with Storage {
                       (implicit format: Format, parse: Parse[A]): Option[List[Option[A]]] = withDB {
     currentDB.get(Key(key)) map { v =>
       Sorter(getBytesSeq(v)).setLookup(by).setAlpha(alpha).setOrder(desc).setLimit(limit).setGetter(get).result
-    }
+    } orElse Some(List.empty)
   }
 
   /**
