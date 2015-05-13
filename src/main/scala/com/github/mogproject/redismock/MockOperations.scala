@@ -1,18 +1,101 @@
 package com.github.mogproject.redismock
 
-import com.github.mogproject.redismock.entity.Key
+import com.github.mogproject.redismock.entity._
 import com.github.mogproject.redismock.storage.Storage
-import com.github.mogproject.redismock.util.StringUtil
+import com.github.mogproject.redismock.util.{Bytes, StringUtil}
 import com.github.mogproject.redismock.util.ops._
 import com.redis.{Operations, Redis}
 import com.redis.serialization.{Format, Parse}
-import scala.util.Random
+import scala.util.{Try, Random}
 
 
 trait MockOperations extends Operations with Storage {
   self: Redis =>
 
   lazy val random = new Random(12345L)
+
+  /** helper class for sort */
+  case class Sorter[A](data: Seq[Bytes],
+                       lookup: Bytes => Option[Bytes] = Some.apply,
+                       alpha: Boolean = false,
+                       noSort: Boolean = false,
+                       postProcess: Seq[Bytes] => Seq[Bytes] = identity,
+                       getterOverride: Option[Bytes => List[Option[A]]] = None)
+                      (implicit format: Format, parse: Parse[A]) {
+
+    private val patternHash = """(.*)\*(.*)->(.+)""".r
+    private val patternString = """(.*)\*(.*)""".r
+
+    private def getFromString(prefix: String, suffix: String)(b: Bytes): Option[Bytes] =
+      currentDB.get(Key(prefix + b.newString + suffix)).map(_.as[StringValue].data)
+
+    private def getFromHash(prefix: String, suffix: String, field: String)(b: Bytes): Option[Bytes] =
+      currentDB.get(Key(prefix + b.newString + suffix)).flatMap(_.as[HashValue].data.get(Bytes(field)))
+
+    private def sortByNumber(xs: Bytes): Double = Try(xs.parse[String]().toDouble)
+      .getOrElse(throw new Exception("ERR One or more scores can't be converted into double"))
+
+    // setters
+    def setLookup(by: Option[String]): Sorter[A] = by match {
+      case None => this
+      case Some(patternHash(prefix, suffix, field)) => copy(lookup = getFromHash(prefix, suffix, field))
+      case Some(patternString(prefix, suffix)) => copy(lookup = getFromString(prefix, suffix))
+      case _ => copy(noSort = true) // nosort
+    }
+
+    def setAlpha(alpha: Boolean): Sorter[A] = copy(alpha = alpha)
+
+    def setOrder(desc: Boolean): Sorter[A] = if (desc) copy(postProcess = _.reverse) else this
+
+    def setLimit(limit: Option[(Int, Int)]): Sorter[A] = limit match {
+      case Some((offset, count)) => copy(postProcess = postProcess andThen (_.slice(offset, offset + count)))
+      case None => this
+    }
+
+    // getters
+    private val getter: Bytes => List[Option[A]] = getterOverride.getOrElse(xs => List(defaultGetter(xs)))
+
+    private def defaultGetter(xs: Bytes): Option[A] = Some(xs.parse(parse))
+
+    private def noneGetter(xs: Bytes): Option[A] = None
+
+    def setGetter(getList: List[String]): Sorter[A] =
+      if (getList.isEmpty)
+        this
+      else
+        copy(getterOverride = Some(xs => getList.map {
+          case "#" => defaultGetter(xs)
+          case patternHash(prefix, suffix, field) => getFromHash(prefix, suffix, field)(xs).map(_.parse(parse))
+          case patternString(prefix, suffix) => getFromString(prefix, suffix)(xs).map(_.parse(parse))
+          case _ => noneGetter(xs)
+        }))
+
+    // make it together
+    private def sort = (noSort, alpha) match {
+      case (true, _) => data
+      case (false, true) => data.sortWith {
+        // compare with Option[Byte]
+        case (a, b) => (lookup(a), lookup(b)) match {
+          case (None, None) => false
+          case (None, Some(y)) => true
+          case (Some(x), None) => false
+          case (Some(x), Some(y)) => x < y
+        }
+      }
+      case (false, false) => data.sortBy(lookup(_).map(sortByNumber))
+    }
+
+    private def get(xs: Seq[Bytes]): List[Option[A]] = xs.toList.flatMap(getter)
+
+    def result: List[Option[A]] = sort |> postProcess |> get
+  }
+
+  private def getBytesSeq(v: Value): Seq[Bytes] = v match {
+    case ys: ListValue => ys.data
+    case ys: SetValue => ys.data.toSeq
+    case ys: SortedSetValue => ys.data.toSeq.map(_._2)
+    case _ => throw new Exception("WRONGTYPE Operation against a key holding the wrong kind of value")
+  }
 
   /**
    * Returns or stores the elements contained in the list, set or sorted set at key. By default, sorting is numeric and
@@ -25,7 +108,12 @@ trait MockOperations extends Operations with Storage {
                        desc: Boolean = false,
                        alpha: Boolean = false,
                        by: Option[String] = None,
-                       get: List[String] = Nil)(implicit format: Format, parse: Parse[A]): Option[List[Option[A]]] = ???
+                       get: List[String] = Nil)
+                      (implicit format: Format, parse: Parse[A]): Option[List[Option[A]]] = withDB {
+    currentDB.get(Key(key)) map { v =>
+      Sorter(getBytesSeq(v)).setLookup(by).setAlpha(alpha).setOrder(desc).setLimit(limit).setGetter(get).result
+    }
+  }
 
   /**
    * SORT with STORE
@@ -39,7 +127,11 @@ trait MockOperations extends Operations with Storage {
                              alpha: Boolean = false,
                              by: Option[String] = None,
                              get: List[String] = Nil,
-                             storeAt: String)(implicit format: Format, parse: Parse[A]): Option[Long] = ???
+                             storeAt: String)(implicit format: Format, parse: Parse[A]): Option[Long] = withDB {
+    val xs = sort(key, limit, desc, alpha, by, get).map(_.flatten).getOrElse(Nil)
+    currentDB.update(Key(storeAt), ListValue(xs.map(Bytes.apply)))
+    Some(xs.length)
+  }
 
   /**
    * Returns all keys matching pattern.
@@ -263,7 +355,7 @@ trait MockOperations extends Operations with Storage {
    * @see http://redis.io/commands/auth
    */
   override def auth(secret: Any)(implicit format: Format): Boolean =
-    throw new Exception("ERR Client sent AUTH, but no password is set")  // always fails
+    throw new Exception("ERR Client sent AUTH, but no password is set") // always fails
 
   /**
    * Remove the existing timeout on key, turning the key from volatile (a key with an expire set) to persistent (a key

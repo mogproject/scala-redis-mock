@@ -1,5 +1,6 @@
 package com.github.mogproject.redismock
 
+import com.redis.serialization.Parse
 import org.scalatest.FunSpec
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.BeforeAndAfterAll
@@ -61,8 +62,8 @@ with BeforeAndAfterAll {
       r.set("anshin-1", "debasish")
       r.set("anshin-2", "maulindu")
       r.rename("anshin-2", "anshin-2-new") should equal(true)
-      val thrown = the [Exception] thrownBy { r.rename("anshin-2", "anshin-2-new") }
-      thrown.getMessage should equal ("ERR no such key")
+      val thrown = the[Exception] thrownBy {r.rename("anshin-2", "anshin-2-new")}
+      thrown.getMessage should equal("ERR no such key")
     }
   }
 
@@ -130,7 +131,6 @@ with BeforeAndAfterAll {
       r.persist("key-3") should equal(false)
     }
   }
-/*
   describe("sort") {
     it("should give") {
       // sort[A](key:String, limit:Option[Pair[Int, Int]] = None, desc:Boolean = false, alpha:Boolean = false, by:Option[String] = None, get:List[String] = Nil)(implicit format:Format, parse:Parse[A]):Option[List[Option[A]]] = {
@@ -151,7 +151,6 @@ with BeforeAndAfterAll {
       r.sort("alltest", None, false, false, None, List("hash-*->description", "hash-*->order")).getOrElse(Nil) should equal(List(Some("one"), Some("100"), Some("two"), Some("25"), Some("three"), Some("50")))
     }
   }
-  import com.redis.serialization._
   describe("sortNStore") {
     it("should give") {
       r.sadd("alltest", 10)
@@ -168,7 +167,7 @@ with BeforeAndAfterAll {
       r.sortNStore[Long]("alltest", storeAt = "skey").getOrElse(-1) should equal(4)
       r.lrange("skey", 0, 10).get should equal(List(Some(1), Some(3), Some(10), Some(30)))
     }
-  }*/
+  }
 
   //
   // additional tests
@@ -234,12 +233,12 @@ with BeforeAndAfterAll {
         r.select(i)
         r.set("anshin-1", "debasish")
         r.dbsize
-      } shouldBe Seq(Some(1),Some(1),Some(1),Some(1),Some(1),Some(1))
+      } shouldBe Seq(Some(1), Some(1), Some(1), Some(1), Some(1), Some(1))
       r.flushdb shouldBe true
       (0 to 5).map { i =>
         r.select(i)
         r.dbsize
-      } shouldBe Seq(Some(1),Some(1),Some(1), Some(1),Some(1),Some(0))
+      } shouldBe Seq(Some(1), Some(1), Some(1), Some(1), Some(1), Some(0))
     }
   }
 
@@ -249,12 +248,12 @@ with BeforeAndAfterAll {
         r.select(i)
         r.set("anshin-1", "debasish")
         r.dbsize
-      } shouldBe Seq(Some(1),Some(1),Some(1),Some(1),Some(1),Some(1))
+      } shouldBe Seq(Some(1), Some(1), Some(1), Some(1), Some(1), Some(1))
       r.flushall shouldBe true
       (0 to 5).map { i =>
         r.select(i)
         r.dbsize
-      } shouldBe Seq(Some(0),Some(0),Some(0),Some(0),Some(0),Some(0))
+      } shouldBe Seq(Some(0), Some(0), Some(0), Some(0), Some(0), Some(0))
     }
   }
 
@@ -262,7 +261,7 @@ with BeforeAndAfterAll {
     it("should throw exception when the destination is same as source") {
       r.set("anshin-1", "debasish")
 
-      val thrown = the [Exception] thrownBy r.move("anshin-1", 0)
+      val thrown = the[Exception] thrownBy r.move("anshin-1", 0)
       thrown.getMessage shouldBe "ERR source and destination objects are the same"
     }
     it("should return false when the key is missing") {
@@ -283,7 +282,7 @@ with BeforeAndAfterAll {
 
   describe("auth (additional)") {
     it("should throw exception") {
-      val thrown = the [Exception] thrownBy r.auth("secret")
+      val thrown = the[Exception] thrownBy r.auth("secret")
       thrown.getMessage shouldBe "ERR Client sent AUTH, but no password is set"
     }
   }
