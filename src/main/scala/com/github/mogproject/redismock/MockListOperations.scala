@@ -56,7 +56,8 @@ trait MockListOperations extends ListOperations with MockOperations with Storage
    * http://redis.io/commands/lpush
    */
   override def lpush(key: Any, value: Any, values: Any*)(implicit format: Format): Option[Long] = withDB {
-    (value :: values.toList).map(Bytes.apply) ++ getRawOrEmpty(key).data <| (set(key, _)) |> (v => Some(v.size))
+    (value :: values.toList).reverse.map(Bytes.apply) ++ getRawOrEmpty(key).data <|
+      (set(key, _)) |> (v => Some(v.size))
   }
 
   /**
