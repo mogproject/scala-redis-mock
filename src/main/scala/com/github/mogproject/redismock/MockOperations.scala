@@ -128,7 +128,7 @@ trait MockOperations extends Operations with Storage {
                              by: Option[String] = None,
                              get: List[String] = Nil,
                              storeAt: String)(implicit format: Format, parse: Parse[A]): Option[Long] = withDB {
-    val xs = sort(key, limit, desc, alpha, by, get).map(_.flatten).getOrElse(Nil)
+    val xs = sort(key, limit, desc, alpha, by, get).map(_.flatten).get
     currentDB.update(Key(storeAt), ListValue(xs.map(Bytes.apply)))
     Some(xs.length)
   }

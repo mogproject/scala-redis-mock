@@ -354,7 +354,9 @@ with BeforeAndAfterAll {
     }
     it("should sort by string lookup") {
       r.lpush("list-1", 1, 23, 4, 567, 8)
+      r.lpush("list-2", 1, 9, 99, 23)
       r.mset("x-1-y" -> 5, "x-23-y" -> 40, "x-4-y" -> 1, "x-567-y" -> 2, "x-8-y" -> 3)
+
       r.sort("list-1", desc=false, alpha=false, by = Some("x-*-y")) shouldBe Some(List(
         Some("4"), Some("567"), Some("8"), Some("1"), Some("23")))
       r.sort("list-1", desc=false, alpha=true, by = Some("x-*-y")) shouldBe Some(List(
@@ -363,6 +365,9 @@ with BeforeAndAfterAll {
         Some("23"), Some("1"), Some("8"), Some("567"), Some("4")))
       r.sort("list-1", desc=true, alpha=true, by = Some("x-*-y")) shouldBe Some(List(
         Some("1"), Some("23"), Some("8"), Some("567"), Some("4")))
+
+      r.sort("list-2", desc=false, alpha=true, by = Some("x-*-y")) shouldBe Some(List(
+        Some("99"), Some("9"), Some("23"), Some("1")))
     }
     it("should work with string getter") {
       r.lpush("list-1", 1, 23, 4)
