@@ -14,14 +14,14 @@ jdk: oraclejdk7
 
 scala: 2.11.6
 
-script:
-  - sbt clean coverage test
-
-  # Tricks to avoid unnecessary cache updates
-  - find $HOME/.sbt -name "*.lock" -delete
-  - find $HOME/.ivy2 -name "ivydata-*.properties" -delete
+script: "sbt clean coverage test"
 
 after_success: "sbt coveralls"
+
+# Tricks to avoid unnecessary cache updates
+before_cache:
+  - find $HOME/.sbt -name "*.lock" -delete
+  - find $HOME/.ivy2 -name "ivydata-*.properties" -delete
 
 matrix:
   include:
