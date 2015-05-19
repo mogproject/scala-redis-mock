@@ -1,16 +1,19 @@
 package com.github.mogproject.redismock
 
 import com.redis.serialization.Parse
+import org.scalacheck.Gen
 import org.scalatest.FunSpec
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Matchers
+import org.scalatest.prop.GeneratorDrivenPropertyChecks
 
 
 class MockOperationsSpec extends FunSpec
 with Matchers
 with BeforeAndAfterEach
-with BeforeAndAfterAll {
+with BeforeAndAfterAll
+with GeneratorDrivenPropertyChecks {
 
   val r = TestUtil.getRedisClient
 
@@ -293,13 +296,13 @@ with BeforeAndAfterAll {
       r.lpush("list-1", 20000000000L)
       r.lpush("list-1", -0.01, 0.01, 3.14)
 
-      r.sort("list-1", None, desc=false, alpha=false) shouldBe Some(List(
+      r.sort("list-1", None, desc = false, alpha = false) shouldBe Some(List(
         "-100", "-25", "-0.01", "0", "0.01", "3.14", "7", "30", "456", "8901", "20000000000").map(Some.apply))
-      r.sort("list-1", None, desc=false, alpha=true) shouldBe Some(List(
+      r.sort("list-1", None, desc = false, alpha = true) shouldBe Some(List(
         "-0.01", "-100", "-25", "0", "0.01", "20000000000", "3.14", "30", "456", "7", "8901").map(Some.apply))
-      r.sort("list-1", None, desc=true, alpha=false) shouldBe Some(List(
+      r.sort("list-1", None, desc = true, alpha = false) shouldBe Some(List(
         "20000000000", "8901", "456", "30", "7", "3.14", "0.01", "0", "-0.01", "-25", "-100").map(Some.apply))
-      r.sort("list-1", None, desc=true, alpha=true) shouldBe Some(List(
+      r.sort("list-1", None, desc = true, alpha = true) shouldBe Some(List(
         "8901", "7", "456", "30", "3.14", "20000000000", "0.01", "0", "-25", "-100", "-0.01").map(Some.apply))
     }
     it("should sort set") {
@@ -307,13 +310,13 @@ with BeforeAndAfterAll {
       r.sadd("set-1", 20000000000L)
       r.sadd("set-1", -0.01, 0.01, 3.14)
 
-      r.sort("set-1", None, desc=false, alpha=false) shouldBe Some(List(
+      r.sort("set-1", None, desc = false, alpha = false) shouldBe Some(List(
         "-100", "-25", "-0.01", "0", "0.01", "3.14", "7", "30", "456", "8901", "20000000000").map(Some.apply))
-      r.sort("set-1", None, desc=false, alpha=true) shouldBe Some(List(
+      r.sort("set-1", None, desc = false, alpha = true) shouldBe Some(List(
         "-0.01", "-100", "-25", "0", "0.01", "20000000000", "3.14", "30", "456", "7", "8901").map(Some.apply))
-      r.sort("set-1", None, desc=true, alpha=false) shouldBe Some(List(
+      r.sort("set-1", None, desc = true, alpha = false) shouldBe Some(List(
         "20000000000", "8901", "456", "30", "7", "3.14", "0.01", "0", "-0.01", "-25", "-100").map(Some.apply))
-      r.sort("set-1", None, desc=true, alpha=true) shouldBe Some(List(
+      r.sort("set-1", None, desc = true, alpha = true) shouldBe Some(List(
         "8901", "7", "456", "30", "3.14", "20000000000", "0.01", "0", "-25", "-100", "-0.01").map(Some.apply))
     }
     it("should sort sorted set") {
@@ -321,13 +324,13 @@ with BeforeAndAfterAll {
       r.zadd("zset-1", 0, 20000000000L)
       r.zadd("zset-1", 0, -0.01, (0, 0.01), (0, 3.14))
 
-      r.sort("zset-1", None, desc=false, alpha=false) shouldBe Some(List(
+      r.sort("zset-1", None, desc = false, alpha = false) shouldBe Some(List(
         "-100", "-25", "-0.01", "0", "0.01", "3.14", "7", "30", "456", "8901", "20000000000").map(Some.apply))
-      r.sort("zset-1", None, desc=false, alpha=true) shouldBe Some(List(
+      r.sort("zset-1", None, desc = false, alpha = true) shouldBe Some(List(
         "-0.01", "-100", "-25", "0", "0.01", "20000000000", "3.14", "30", "456", "7", "8901").map(Some.apply))
-      r.sort("zset-1", None, desc=true, alpha=false) shouldBe Some(List(
+      r.sort("zset-1", None, desc = true, alpha = false) shouldBe Some(List(
         "20000000000", "8901", "456", "30", "7", "3.14", "0.01", "0", "-0.01", "-25", "-100").map(Some.apply))
-      r.sort("zset-1", None, desc=true, alpha=true) shouldBe Some(List(
+      r.sort("zset-1", None, desc = true, alpha = true) shouldBe Some(List(
         "8901", "7", "456", "30", "3.14", "20000000000", "0.01", "0", "-25", "-100", "-0.01").map(Some.apply))
     }
     it("should return empty list when the key does not exist") {
@@ -345,11 +348,11 @@ with BeforeAndAfterAll {
     }
     it("should work with nosort option") {
       r.lpush("list-1", 1, 23, 4, 567, 8)
-      r.sort("list-1", desc=false, alpha=false, by = Some("nosort")) shouldBe Some(List(
+      r.sort("list-1", desc = false, alpha = false, by = Some("nosort")) shouldBe Some(List(
         Some("8"), Some("567"), Some("4"), Some("23"), Some("1")))
-      r.sort("list-1", desc=false, alpha=false, by = Some("")) shouldBe Some(List(
+      r.sort("list-1", desc = false, alpha = false, by = Some("")) shouldBe Some(List(
         Some("8"), Some("567"), Some("4"), Some("23"), Some("1")))
-      r.sort("list-1", desc=false, alpha=false, by = Some("xxx")) shouldBe Some(List(
+      r.sort("list-1", desc = false, alpha = false, by = Some("xxx")) shouldBe Some(List(
         Some("8"), Some("567"), Some("4"), Some("23"), Some("1")))
     }
     it("should sort by string lookup") {
@@ -357,16 +360,16 @@ with BeforeAndAfterAll {
       r.lpush("list-2", 1, 9, 99, 23)
       r.mset("x-1-y" -> 5, "x-23-y" -> 40, "x-4-y" -> 1, "x-567-y" -> 2, "x-8-y" -> 3)
 
-      r.sort("list-1", desc=false, alpha=false, by = Some("x-*-y")) shouldBe Some(List(
+      r.sort("list-1", desc = false, alpha = false, by = Some("x-*-y")) shouldBe Some(List(
         Some("4"), Some("567"), Some("8"), Some("1"), Some("23")))
-      r.sort("list-1", desc=false, alpha=true, by = Some("x-*-y")) shouldBe Some(List(
+      r.sort("list-1", desc = false, alpha = true, by = Some("x-*-y")) shouldBe Some(List(
         Some("4"), Some("567"), Some("8"), Some("23"), Some("1")))
-      r.sort("list-1", desc=true, alpha=false, by = Some("x-*-y")) shouldBe Some(List(
+      r.sort("list-1", desc = true, alpha = false, by = Some("x-*-y")) shouldBe Some(List(
         Some("23"), Some("1"), Some("8"), Some("567"), Some("4")))
-      r.sort("list-1", desc=true, alpha=true, by = Some("x-*-y")) shouldBe Some(List(
+      r.sort("list-1", desc = true, alpha = true, by = Some("x-*-y")) shouldBe Some(List(
         Some("1"), Some("23"), Some("8"), Some("567"), Some("4")))
 
-      r.sort("list-2", desc=false, alpha=true, by = Some("x-*-y")) shouldBe Some(List(
+      r.sort("list-2", desc = false, alpha = true, by = Some("x-*-y")) shouldBe Some(List(
         Some("99"), Some("9"), Some("23"), Some("1")))
     }
     it("should work with string getter") {
@@ -374,11 +377,53 @@ with BeforeAndAfterAll {
       r.set("x-1-y", "v1")
       r.set("x-23-y", "v23")
       r.set("x-4-y", "v4")
-      r.sort("list-1", desc=false, alpha=false, get = List("x-*-y", "xxx-*", "list-1", "#", "xxx")) shouldBe Some(List(
+      r.sort("list-1", desc = false, alpha = false, get = List("x-*-y", "xxx-*", "list-1", "#", "xxx")) shouldBe Some(List(
         Some("v1"), None, None, Some("1"), None,
         Some("v4"), None, None, Some("4"), None,
         Some("v23"), None, None, Some("23"), None
       ))
+    }
+  }
+
+  describe("scan (additional)") {
+    it("should work with empty set") {
+      forAll(Gen.choose(-100, 100)) { i =>
+        r.scan(i) shouldBe Some((Some(0), Some(List())))
+      }
+    }
+    it("should work with set with one element") {
+      r.set("anshin-1", "debasish")
+      r.scan(0) shouldBe Some((Some(0), Some(List(Some("anshin-1")))))
+
+      // Calling SCAN with a broken, negative, out of range, or otherwise invalid cursor, will result into undefined
+      // behavior but never into a crash.
+      forAll(Gen.choose(-100, 100)) { i =>
+        r.scan(i) should (be (Some((Some(0), Some(List())))) or be (Some((Some(0), Some(List(Some("anshin-1")))))))
+      }
+    }
+    it("should get back to 0 after iteration") {
+      for (i <- 0 to 100) r.set(s"key-${i}", "value")
+
+      @annotation.tailrec
+      def f(cursor: Int, sofar: List[List[Option[String]]], count: Int): List[List[Option[String]]] = {
+        if (count <= 0)
+          fail("too many loop count")
+        else if (cursor == 0 && sofar.nonEmpty)
+          sofar
+        else
+          r.scan(cursor) match {case Some((Some(x), Some(xs))) => f(x, xs :: sofar, count - 1)}
+      }
+
+      val result = f(0, Nil, 100)
+      result.flatten should have size 101
+      result.flatten.toSet should have size 101
+      result.size should be <= 11
+    }
+    it("should throw exception with the negative or zero count") {
+      val t1 = the[Exception] thrownBy r.scan(0, "*", 0)
+      t1.getMessage shouldBe "ERR syntax error"
+      val t2 = the[Exception] thrownBy r.scan(0, "*", Int.MinValue)
+      t2.getMessage shouldBe "ERR syntax error"
     }
   }
 }
