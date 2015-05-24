@@ -1,6 +1,7 @@
 package com.github.mogproject.redismock
 
 import com.github.mogproject.redismock.entity._
+import com.github.mogproject.redismock.generic.GenericOperations
 import com.github.mogproject.redismock.storage.Storage
 import com.github.mogproject.redismock.util.{Bytes, StringUtil}
 import com.github.mogproject.redismock.util.ops._
@@ -9,7 +10,7 @@ import com.redis.serialization.{Format, Parse}
 import scala.util.{Try, Random}
 
 
-trait MockOperations extends Operations with Storage {
+trait MockOperations extends Operations with Storage with GenericOperations {
   self: Redis =>
 
   lazy val random = new Random(12345L)
@@ -381,8 +382,7 @@ trait MockOperations extends Operations with Storage {
    * @see http://redis.io/commands/scan
    */
   override def scan[A](cursor: Int, pattern: Any = "*", count: Int = 10)
-                      (implicit format: Format, parse: Parse[A])
-  : Option[(Option[Int], Option[List[Option[A]]])] =
-  // TODO: implement
-    ???
+                      (implicit format: Format, parse: Parse[A]): Option[(Option[Int], Option[List[Option[A]]])] =
+    genericScan(currentDB.keys.map(_.k), cursor, pattern, count)
+
 }

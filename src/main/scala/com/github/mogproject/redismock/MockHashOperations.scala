@@ -175,5 +175,7 @@ trait MockHashOperations extends HashOperations with MockOperations with Storage
    */
   override def hscan[A](key: Any, cursor: Int, pattern: Any = "*", count: Int = 10)
                        (implicit format: Format, parse: Parse[A]): Option[(Option[Int], Option[List[Option[A]]])] =
-    ???
+    genericScan(getRawOrEmpty(key).data.toSeq,
+      cursor, pattern, count, (kv: (Bytes, Bytes)) => kv._1, (kv : (Bytes, Bytes)) => Seq(kv._1, kv._2))
+
 }

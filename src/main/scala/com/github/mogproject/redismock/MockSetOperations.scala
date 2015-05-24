@@ -205,9 +205,8 @@ trait MockSetOperations extends SetOperations with MockOperations with Storage w
    *
    * @see http://redis.io/commands/sscan
    */
-  override def sscan[A](key: Any, cursor: Int, pattern: Any = "*", count: Int = 10)(implicit format: Format, parse: Parse[A]): Option[(Option[Int], Option[List[Option[A]]])] =
-  // TODO: implement
-    ???
+  override def sscan[A](key: Any, cursor: Int, pattern: Any = "*", count: Int = 10)
+                       (implicit format: Format, parse: Parse[A]): Option[(Option[Int], Option[List[Option[A]]])] =
+    genericScan(getRawOrEmpty(key).data, cursor, pattern, count)
 
-  //send("SSCAN", key :: cursor :: ((x: List[Any]) => if (pattern == "*") x else "match" :: pattern :: x)(if (count == 10) Nil else List("count", count)))(asPair)
 }

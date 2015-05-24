@@ -4,7 +4,6 @@ import sbt.Keys._
 object Common {
   val commonSettings = Seq(
     organization := "com.github.mogproject",
-    version := "0.1.0-SNAPSHOT",
     scalaVersion := "2.11.6",
     scalacOptions ++= Seq(
       "-encoding", "utf-8",

@@ -48,7 +48,7 @@ trait MockSortedSetOperations
   private def toValues[A](parse: Parse[A])(xs: List[(Double, Bytes)]): List[A] = xs.map(_._2.parse(parse))
 
   private def toValueScores[A](parse: Parse[A])(xs: List[(Double, Bytes)]): List[(A, Double)] =
-    xs.map { case (s, v) => (v.parse(parse), s) }
+    xs.map { case (s, v) => (v.parse(parse), s)}
 
   private def storeReduced(op: (Set[Bytes], Set[Bytes]) => Set[Bytes])
                           (dstKey: Any, kws: Iterable[Product2[Any, Double]], aggregate: Aggregate)
@@ -60,7 +60,7 @@ trait MockSortedSetOperations
       case MAX => (math.max, Double.MinValue)
     }
 
-    val indexWeightSeq = kws.map { case Product2(k, w) => (getRawOrEmpty(k).index, w) }
+    val indexWeightSeq = kws.map { case Product2(k, w) => (getRawOrEmpty(k).index, w)}
 
     val values: Seq[Bytes] = indexWeightSeq.map(_._1.keySet).reduceLeft(op).toSeq
     val scores = values.map { v =>
@@ -69,7 +69,7 @@ trait MockSortedSetOperations
       }
     }
 
-    SortedSetValue(scores zip values: _*) <| { v => setRaw(dstKey, v) } |> { v => Some(v.size) }
+    SortedSetValue(scores zip values: _*) <| { v => setRaw(dstKey, v)} |> { v => Some(v.size)}
   }
 
 
@@ -89,7 +89,7 @@ trait MockSortedSetOperations
   override def zadd(key: Any, score: Double, member: Any, scoreVals: (Double, Any)*)
                    (implicit format: Format): Option[Long] = withDB {
     val a = getRawOrEmpty(key)
-    val b = a ++ ((score, member) :: scoreVals.toList).map { case (s, m) => (s, Bytes(m)) }
+    val b = a ++ ((score, member) :: scoreVals.toList).map { case (s, m) => (s, Bytes(m))}
     setRaw(key, b)
     Some(b.size - a.size)
   }
@@ -126,7 +126,7 @@ trait MockSortedSetOperations
       x = Bytes(member)
       s <- v.index.get(x)
     } yield {
-      s + incr <| { d => setRaw(key, v.updated(d, x)) }
+      s + incr <| { d => setRaw(key, v.updated(d, x))}
     }
   }
 
@@ -214,7 +214,7 @@ trait MockSortedSetOperations
    * @see http://redis.io/commands/zrevrank
    */
   override def zrank(key: Any, member: Any, reverse: Boolean = false)(implicit format: Format): Option[Long] =
-    getRaw(key).flatMap { v => v.rank(Bytes(member)).map(_.mapWhenTrue(reverse)(v.size - _ - 1)) }
+    getRaw(key).flatMap { v => v.rank(Bytes(member)).map(_.mapWhenTrue(reverse)(v.size - _ - 1))}
 
   /**
    * Removes all elements in the sorted set stored at key with rank between start and stop. Both start and stop are
@@ -329,10 +329,10 @@ trait MockSortedSetOperations
    *
    * @see http://redis.io/commands/zscan
    */
-  override def zscan[A](key: Any, cursor: Int, pattern: Any = "*", count: Int = 10)(implicit format: Format, parse: Parse[A]): Option[(Option[Int], Option[List[Option[A]]])] =
-  // TODO: implement
-    ???
+  override def zscan[A](key: Any, cursor: Int, pattern: Any = "*", count: Int = 10)
+                       (implicit format: Format, parse: Parse[A]): Option[(Option[Int], Option[List[Option[A]]])] =
+    genericScan(getRawOrEmpty(key).data.toSeq,
+      cursor, pattern, count, (kv: (Double, Bytes)) => kv._2, (kv: (Double, Bytes)) => Seq(kv._2, Bytes(kv._1)))
 
-  //    send("ZSCAN", key :: cursor :: ((x: List[Any]) => if(pattern == "*") x else "match" :: pattern :: x)(if(count == 10) Nil else List("count", count)))(asPair)
 }
 
