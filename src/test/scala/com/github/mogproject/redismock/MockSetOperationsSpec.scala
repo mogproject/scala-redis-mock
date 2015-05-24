@@ -37,8 +37,8 @@ with GeneratorDrivenPropertyChecks {
     }
     it("should fail if the key points to a non-set") {
       r.lpush("list-1", "foo") should equal(Some(1))
-      val thrown = the [Exception] thrownBy { r.sadd("list-1", "foo") }
-      thrown.getMessage should include ("Operation against a key holding the wrong kind of value")
+      val thrown = the[Exception] thrownBy {r.sadd("list-1", "foo")}
+      thrown.getMessage should include("Operation against a key holding the wrong kind of value")
     }
   }
 
@@ -63,8 +63,8 @@ with GeneratorDrivenPropertyChecks {
     }
     it("should fail if the key points to a non-set") {
       r.lpush("list-1", "foo") should equal(Some(1))
-      val thrown = the [Exception] thrownBy { r.srem("list-1", "foo") }
-      thrown.getMessage should include ("Operation against a key holding the wrong kind of value")
+      val thrown = the[Exception] thrownBy {r.srem("list-1", "foo")}
+      thrown.getMessage should include("Operation against a key holding the wrong kind of value")
     }
   }
 
@@ -114,8 +114,8 @@ with GeneratorDrivenPropertyChecks {
       r.lpush("list-1", "bar") should equal(Some(2))
       r.lpush("list-1", "baz") should equal(Some(3))
       r.sadd("set-1", "foo").get should equal(1)
-      val thrown = the [Exception] thrownBy { r.smove("list-1", "set-1", "bat") }
-      thrown.getMessage should include ("Operation against a key holding the wrong kind of value")
+      val thrown = the[Exception] thrownBy {r.smove("list-1", "set-1", "bat")}
+      thrown.getMessage should include("Operation against a key holding the wrong kind of value")
     }
   }
 
@@ -331,6 +331,73 @@ with GeneratorDrivenPropertyChecks {
   //
   // additional tests
   //
+  describe("srandmember (additional)") {
+    val a1 = Some("value-1")
+    val a2 = Some("value-2")
+
+    it("should work with empty set") {
+      r.sadd("set-1", "value-1")
+      r.srem("set-1", "value-1")
+      r.srandmember("set-1") shouldBe None
+    }
+    it("should return random element") {
+      r.sadd("set-1", "value-1")
+      r.sadd("set-1", "value-2")
+
+      val s = Seq.fill(1000)(r.srandmember("set-1")).toSet
+      s shouldBe Set(a1, a2)
+    }
+  }
+
+  describe("srandmember with count (additional)") {
+    val a1 = Some("value-1")
+    val a2 = Some("value-2")
+
+    it("should work with empty set") {
+      r.sadd("set-1", "value-1")
+      r.srem("set-1", "value-1")
+      r.srandmember("set-1", 0) shouldBe Some(List())
+      r.srandmember("set-1", 100) shouldBe Some(List())
+      r.srandmember("set-1", -100) shouldBe Some(List())
+    }
+    it("should return empty list when the count is zero") {
+      r.sadd("set-1", "value-1")
+      r.sadd("set-1", "value-2")
+      r.srandmember("set-1", 0) shouldBe Some(List())
+    }
+    it("should return distinct members with positive number count") {
+      r.sadd("set-1", "value-1")
+      r.sadd("set-1", "value-2")
+
+      val s1 = Seq.fill(1000)(r.srandmember("set-1", 1)).toSet
+      s1 shouldBe Set(Some(List(a1)), Some(List(a2)))
+    }
+    it("should return fixed list when the count is equal or greater than the number of elements") {
+      r.sadd("set-1", "value-1")
+      r.sadd("set-1", "value-2")
+
+      val s2 = Seq.fill(1000)(r.srandmember("set-1", 2)).toSet
+      val s100 = Seq.fill(1000)(r.srandmember("set-1", 100)).toSet
+
+      s2 should (be(Set(Some(List(a1, a2)))) or be(Some(List(a2, a1))))
+      s100 shouldBe s2
+    }
+    it("should return duplicated members with negative number count") {
+      r.sadd("set-1", "value-1")
+      r.sadd("set-1", "value-2")
+
+      val s1 = Seq.fill(1000)(r.srandmember("set-1", -1)).toSet
+      val s2 = Seq.fill(1000)(r.srandmember("set-1", -2)).toSet
+      val s3 = Seq.fill(1000)(r.srandmember("set-1", -3)).toSet
+
+      s1 shouldBe Set(Some(List(a1)), Some(List(a2)))
+      s2 shouldBe Set(Some(List(a1, a1)), Some(List(a1, a2)), Some(List(a2, a1)), Some(List(a2, a2)))
+      s3 shouldBe Set(
+        Some(List(a1, a1, a1)), Some(List(a1, a1, a2)), Some(List(a1, a2, a1)), Some(List(a1, a2, a2)),
+        Some(List(a2, a1, a1)), Some(List(a2, a1, a2)), Some(List(a2, a2, a1)), Some(List(a2, a2, a2)))
+    }
+  }
+
   describe("sscan (additional)") {
     it("should work with non-existent key") {
       r.sscan("set-1", 0) shouldBe Some((Some(0), Some(List())))
@@ -350,11 +417,11 @@ with GeneratorDrivenPropertyChecks {
       // Calling SCAN with a broken, negative, out of range, or otherwise invalid cursor, will result into undefined
       // behavior but never into a crash.
       forAll(Gen.choose(-100, 100)) { i =>
-        r.sscan("set-1", i) should (be (Some((Some(0), Some(List())))) or be (Some((Some(0), Some(List(Some("value-1")))))))
+        r.sscan("set-1", i) should (be(Some((Some(0), Some(List())))) or be(Some((Some(0), Some(List(Some("value-1")))))))
       }
     }
     it("should get back to 0 after iteration") {
-      r.sadd("set-1", "value-0", (1 to 100).map(i => s"value-${i}"):_*)
+      r.sadd("set-1", "value-0", (1 to 100).map(i => s"value-${i}"): _*)
 
       @annotation.tailrec
       def f(cursor: Int, sofar: List[List[Option[String]]], count: Int): List[List[Option[String]]] = {

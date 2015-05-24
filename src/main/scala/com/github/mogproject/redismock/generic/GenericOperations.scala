@@ -8,10 +8,13 @@ import com.redis.{Millis, Seconds, SecondsOrMillis, Redis}
 import com.redis.serialization.{Parse, Format}
 
 import scala.reflect.ClassTag
+import scala.util.Random
 
 
 trait GenericOperations extends Storage {
   self: Redis =>
+
+  lazy val random = new Random(12345L)
 
   protected def setRaw[A <: Value](key: Any, value: A)(implicit format: Format): Unit =
     currentDB.update(Key(key), value)

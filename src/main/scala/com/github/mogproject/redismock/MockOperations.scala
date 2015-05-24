@@ -7,13 +7,11 @@ import com.github.mogproject.redismock.util.{Bytes, StringUtil}
 import com.github.mogproject.redismock.util.ops._
 import com.redis.{Operations, Redis}
 import com.redis.serialization.{Format, Parse}
-import scala.util.{Try, Random}
+import scala.util.Try
 
 
 trait MockOperations extends Operations with Storage with GenericOperations {
   self: Redis =>
-
-  lazy val random = new Random(12345L)
 
   /** helper class for sort */
   case class Sorter[A](data: Seq[Bytes],
