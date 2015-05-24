@@ -331,6 +331,27 @@ with GeneratorDrivenPropertyChecks {
   //
   // additional tests
   //
+  describe("spop (additional)") {
+    val a1 = Some("value-1")
+    val a2 = Some("value-2")
+
+    it("should work with empty set") {
+      r.sadd("set-1", "value-1")
+      r.srem("set-1", "value-1")
+      r.spop("set-1") shouldBe None
+    }
+    it("should pop random element") {
+      val s = Seq.fill(1000) {
+        r.sadd("set-1", "value-1")
+        r.sadd("set-1", "value-2")
+        val ret = r.spop("set-1")
+        r.del("set-1")
+        ret
+      }.toSet
+      s shouldBe Set(a1, a2)
+    }
+  }
+
   describe("srandmember (additional)") {
     val a1 = Some("value-1")
     val a2 = Some("value-2")

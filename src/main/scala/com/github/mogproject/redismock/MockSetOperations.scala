@@ -75,14 +75,7 @@ trait MockSetOperations extends SetOperations with MockOperations with Storage w
    * @see http://redis.io/commands/spop
    */
   override def spop[A](key: Any)(implicit format: Format, parse: Parse[A]): Option[A] = withDB {
-    // TODO: random choice
-    for {
-      s <- getRaw(key)
-      x <- s.data.headOption
-    } yield {
-      set(key, s.data.tail)
-      x.parse(parse)
-    }
+    srandmember(key).map(_ <| (srem(key, _)))
   }
 
   /**
