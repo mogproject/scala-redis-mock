@@ -30,7 +30,7 @@ with BeforeAndAfterAll {
     }
     it("should throw if the key has a non-list value") {
       r.set("anshin-1", "debasish") should equal(true)
-      val thrown = the [Exception] thrownBy { r.lpush("anshin-1", "bar") }
+      val thrown = the[Exception] thrownBy {r.lpush("anshin-1", "bar")}
       thrown.getMessage should include("Operation against a key holding the wrong kind of value")
     }
   }
@@ -50,7 +50,7 @@ with BeforeAndAfterAll {
     }
     it("should throw if the key has a non-list value") {
       r.set("anshin-1", "debasish") should equal(true)
-      val thrown = the [Exception] thrownBy { r.lpushx("anshin-1", "bar") }
+      val thrown = the[Exception] thrownBy {r.lpushx("anshin-1", "bar")}
       thrown.getMessage should include("Operation against a key holding the wrong kind of value")
     }
   }
@@ -62,7 +62,7 @@ with BeforeAndAfterAll {
     }
     it("should throw if the key has a non-list value") {
       r.set("anshin-1", "debasish") should equal(true)
-      val thrown = the [Exception] thrownBy { r.rpush("anshin-1", "bar") }
+      val thrown = the[Exception] thrownBy {r.rpush("anshin-1", "bar")}
       thrown.getMessage should include("Operation against a key holding the wrong kind of value")
     }
   }
@@ -82,7 +82,7 @@ with BeforeAndAfterAll {
     }
     it("should throw if the key has a non-list value") {
       r.set("anshin-1", "debasish") should equal(true)
-      val thrown = the [Exception] thrownBy { r.rpushx("anshin-1", "bar") }
+      val thrown = the[Exception] thrownBy {r.rpushx("anshin-1", "bar")}
       thrown.getMessage should include("Operation against a key holding the wrong kind of value")
     }
   }
@@ -98,7 +98,7 @@ with BeforeAndAfterAll {
     }
     it("should throw for a non-list key") {
       r.set("anshin-1", "debasish") should equal(true)
-      val thrown = the [Exception] thrownBy { r.llen("anshin-1") }
+      val thrown = the[Exception] thrownBy {r.llen("anshin-1")}
       thrown.getMessage should include("Operation against a key holding the wrong kind of value")
     }
   }
@@ -194,7 +194,7 @@ with BeforeAndAfterAll {
       r.lpush("list-1", "6") should equal(Some(1))
       r.lpush("list-1", "5") should equal(Some(2))
       r.lpush("list-1", "4") should equal(Some(3))
-      val thrown = the [Exception] thrownBy { r.lset("list-1", 12, "30") }
+      val thrown = the[Exception] thrownBy {r.lset("list-1", 12, "30")}
       thrown.getMessage should include("index out of range")
     }
   }
@@ -350,9 +350,9 @@ with BeforeAndAfterAll {
     it("should pop blockingly") {
       val r1 = TestUtil.getRedisClient
       class Foo extends Runnable {
-        def start () {
-          val myThread = new Thread(this) ;
-          myThread.start() ;
+        def start() {
+          val myThread = new Thread(this);
+          myThread.start();
         }
 
         def run {
@@ -376,12 +376,12 @@ with BeforeAndAfterAll {
   }
 
   describe("blpop") {
-    it ("should pop in a blocking mode") {
+    it("should pop in a blocking mode") {
       val r1 = TestUtil.getRedisClient
       class Foo extends Runnable {
-        def start () {
-          val myThread = new Thread(this) ;
-          myThread.start() ;
+        def start() {
+          val myThread = new Thread(this);
+          myThread.start();
         }
 
         def run {
@@ -390,6 +390,30 @@ with BeforeAndAfterAll {
         }
       }
       (new Foo).start
+      r1.llen("l1").get should equal(0)
+      r1.lpush("l1", "a")
+      Thread.sleep(5000) // to prevent flushdb
+    }
+  }
+
+  //
+  // additional tests
+  //
+  describe("brpop") {
+    it("should pop in a blocking mode") {
+      val r1 = TestUtil.getRedisClient
+      class Foo extends Runnable {
+        def start() {
+          val myThread = new Thread(this)
+          myThread.start()
+        }
+
+        def run() {
+          r.brpop(3, "l1", "l2") should equal(Some(("l1", "a")))
+          r1.disconnect
+        }
+      }
+      (new Foo).start()
       r1.llen("l1").get should equal(0)
       r1.lpush("l1", "a")
       Thread.sleep(5000) // to prevent flushdb
