@@ -400,7 +400,7 @@ with GeneratorDrivenPropertyChecks {
       val s2 = Seq.fill(1000)(r.srandmember("set-1", 2)).toSet
       val s100 = Seq.fill(1000)(r.srandmember("set-1", 100)).toSet
 
-      s2 should (be(Set(Some(List(a1, a2)))) or be(Some(List(a2, a1))))
+      s2 should (be(Set(Some(List(a1, a2)))) or be(Set(Some(List(a2, a1)))))
       s100 shouldBe s2
     }
     it("should return duplicated members with negative number count") {
