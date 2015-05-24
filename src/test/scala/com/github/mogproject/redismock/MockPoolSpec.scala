@@ -59,20 +59,11 @@ class MockPoolSpec extends FunSpec with Matchers with BeforeAndAfterEach with Be
   describe("pool test") {
     it("should distribute work amongst the clients") {
       val l = (0 until 5000).map(_.toString).toList
-      val fns = List[List[String] => Option[Long]](set)
-      val tasks = fns map (fn => Future { fn(l) })
-      val results = Await.result(Future.sequence(tasks), 20.seconds)
-      results should equal(List(Some(1000)))
-    }
-
-    /* TODO: add list operations version
-    it("should distribute work amongst the clients") {
-      val l = (0 until 5000).map(_.toString).toList
       val fns = List[List[String] => Option[Long]](lp, rp, set)
       val tasks = fns map (fn => Future { fn(l) })
-      val results = Await.result(Future.sequence(tasks), 20 seconds)
+      val results = Await.result(Future.sequence(tasks), 20.seconds)
       results should equal(List(Some(5000), Some(5000), Some(1000)))
     }
-    */
+
   }
 }

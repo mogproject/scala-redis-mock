@@ -75,14 +75,7 @@ trait MockSetOperations extends SetOperations with MockOperations with Storage w
    * @see http://redis.io/commands/spop
    */
   override def spop[A](key: Any)(implicit format: Format, parse: Parse[A]): Option[A] = withDB {
-    // TODO: random choice
-    for {
-      s <- getRaw(key)
-      x <- s.data.headOption
-    } yield {
-      set(key, s.data.tail)
-      x.parse(parse)
-    }
+    srandmember(key).map(_ <| (srem(key, _)))
   }
 
   /**
@@ -192,13 +185,25 @@ trait MockSetOperations extends SetOperations with MockOperations with Storage w
    *
    * @see http://redis.io/commands/srandmember
    */
-  override def srandmember[A](key: Any)(implicit format: Format, parse: Parse[A]): Option[A] =
-  // TODO: random choice
-    getRawOrEmpty(key).data.headOption.map(_.parse(parse))
+  override def srandmember[A](key: Any)(implicit format: Format, parse: Parse[A]): Option[A] = {
+    val xs = getRawOrEmpty(key).data.toVector
+    val n = xs.size
+    Some(getRawOrEmpty(key).data.toSeq).filter(_.nonEmpty).map(xs => xs(random.nextInt(n)).parse(parse))
+  }
 
-  override def srandmember[A](key: Any, count: Int)(implicit format: Format, parse: Parse[A]): Option[List[Option[A]]] =
-  // TODO: random choice
-    getRawOrEmpty(key).data.take(count).toList.map(_.parseOption(parse)) |> Some.apply
+  override def srandmember[A](key: Any, count: Int)
+                             (implicit format: Format, parse: Parse[A]): Option[List[Option[A]]] = {
+    val xs = getRawOrEmpty(key).data.toVector
+    val n = xs.size
+
+    (n match {
+      case 0 => Seq.empty
+      case _ if count < 0 => Seq.fill(-count)(xs(random.nextInt(n)))
+      case _ if count == 0 => Seq.empty
+      case _ if count < n => random.shuffle(xs).take(count)
+      case _ => xs
+    }).toList.map(_.parseOption(parse)) |> Some.apply
+  }
 
   /**
    * Incrementally iterate Set elements (since 2.8)

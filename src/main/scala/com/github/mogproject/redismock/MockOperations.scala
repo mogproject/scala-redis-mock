@@ -7,13 +7,11 @@ import com.github.mogproject.redismock.util.{Bytes, StringUtil}
 import com.github.mogproject.redismock.util.ops._
 import com.redis.{Operations, Redis}
 import com.redis.serialization.{Format, Parse}
-import scala.util.{Try, Random}
+import scala.util.Try
 
 
 trait MockOperations extends Operations with Storage with GenericOperations {
   self: Redis =>
-
-  lazy val random = new Random(12345L)
 
   /** helper class for sort */
   case class Sorter[A](data: Seq[Bytes],
@@ -159,10 +157,8 @@ trait MockOperations extends Operations with Storage with GenericOperations {
    *
    * @see http://redis.io/commands/randomkey
    */
-  override def randomkey[A](implicit parse: Parse[A]): Option[A] = {
-    // TODO: make random after implementing 'scan'
-    currentDB.keys.headOption.map(_.k.parse(parse))
-  }
+  override def randomkey[A](implicit parse: Parse[A]): Option[A] =
+    Some(currentDB.keys.toSeq).filter(_.nonEmpty).map(ks => ks(random.nextInt(ks.length)).k.parse(parse))
 
   /**
    * Renames key to newkey. It returns an error when the source and destination names are the same, or when key does not

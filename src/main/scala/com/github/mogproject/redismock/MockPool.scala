@@ -1,7 +1,6 @@
 package com.github.mogproject.redismock
 
 import com.redis.{RedisClient, RedisClientPool}
-import com.redis.cluster.ClusterNode
 import org.apache.commons.pool._
 import org.apache.commons.pool.impl._
 
@@ -52,13 +51,4 @@ class MockRedisClientPool(override val host: String,
 
   // close pool & free resources
   override def close() = mockPool.close
-}
-
-/**
- *
- * poolname must be unique
- */
-class MockIdentifiableRedisClientPool(val node: ClusterNode)
-  extends MockRedisClientPool(node.host, node.port, node.maxIdle, node.database, node.secret, node.timeout) {
-  override def toString = node.nodename
 }
