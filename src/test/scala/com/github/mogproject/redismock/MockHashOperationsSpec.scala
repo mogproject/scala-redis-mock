@@ -86,6 +86,53 @@ with GeneratorDrivenPropertyChecks {
   //
   // additional tests
   //
+  describe("hsetnx (additional)") {
+    it("should return true and create field when the key does not exist") {
+      r.hsetnx("hash-1", "field-1", "value-1") shouldBe true
+      r.hget("hash-1", "field-1") shouldBe Some("value-1")
+    }
+    it("should return true and create field when the field does not exist") {
+      r.hset("hash-1", "field-1", "value-1")
+      r.hsetnx("hash-1", "field-2", "value-2") shouldBe true
+      r.hget("hash-1", "field-2") shouldBe Some("value-2")
+    }
+    it("should return false and not update value when the field exists") {
+      r.hset("hash-1", "field-1", "value-1")
+      r.hsetnx("hash-1", "field-1", "value-2") shouldBe false
+      r.hget("hash-1", "field-1") shouldBe Some("value-1")
+    }
+  }
+
+  describe("hincrby (additional)") {
+    it("should create new key when the key does not exist") {
+      r.hincrby("hash-1", "field-1", 1) shouldBe Some(1)
+      r.hget("hash-1", "field-1") shouldBe Some("1")
+    }
+    it("should create new field when the field does not exist") {
+      r.hset("hash-1", "field-1", "value-1")
+      r.hincrby("hash-1", "field-2", 2) shouldBe Some(2)
+      r.hget("hash-1", "field-2") shouldBe Some("2")
+    }
+    it("should throw exception when the value is invalid") {
+      r.hset("hash-1", "field-1", "value-1")
+      r.hset("hash-1", "field-2", 1.23)
+      r.hset("hash-1", "field-3", 9223372036854775807L)
+      r.hset("hash-1", "field-4", -9223372036854775808L)
+
+      val thrown1 = the[Exception] thrownBy {r.hincrby("hash-1", "field-1", 123)}
+      thrown1.getMessage shouldBe "ERR hash value is not an integer"
+
+      val thrown2 = the[Exception] thrownBy {r.hincrby("hash-1", "field-2", 0)}
+      thrown2.getMessage shouldBe "ERR hash value is not an integer"
+
+      val thrown3 = the[Exception] thrownBy {r.hincrby("hash-1", "field-3", 1)}
+      thrown3.getMessage shouldBe "ERR increment or decrement would overflow"
+
+      val thrown4 = the[Exception] thrownBy {r.hincrby("hash-1", "field-4", -1)}
+      thrown4.getMessage shouldBe "ERR increment or decrement would overflow"
+    }
+  }
+
   describe("hscan (additional)") {
     it("should work with non-existent key") {
       r.hscan("hash-1", 0) shouldBe Some((Some(0), Some(List())))

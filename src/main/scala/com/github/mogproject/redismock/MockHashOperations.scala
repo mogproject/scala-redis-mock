@@ -21,7 +21,7 @@ trait MockHashOperations extends HashOperations with MockOperations with Storage
   private def set(key: Any, value: Map[Bytes, Bytes])(implicit format: Format): Unit = setRaw(key, HashValue(value))
 
   private def getLong(key: Any, field: Any)(implicit format: Format): Option[Long] = hget(key, field).map { v =>
-    Try(v.toLong).getOrElse(throw new RuntimeException("ERR hash value is not an integer or out of range"))
+    Try(v.toLong).getOrElse(throw new RuntimeException("ERR hash value is not an integer"))
   }
 
   private def getLongOrZero(key: Any, field: Any)(implicit format: Format): Long = getLong(key, field).getOrElse(0L)
@@ -51,7 +51,7 @@ trait MockHashOperations extends HashOperations with MockOperations with Storage
    * @see http://redis.io/commands/hsetnx
    */
   override def hsetnx(key: Any, field: Any, value: Any)(implicit format: Format): Boolean = withDB {
-    !exists(key) <| (_ => set(key, Map(Bytes(field) -> Bytes(value))))
+    !hexists(key, field) whenTrue hset(key, field, value)
   }
 
   /**
@@ -93,7 +93,7 @@ trait MockHashOperations extends HashOperations with MockOperations with Storage
    * @see http://redis.io/commands/hincrby
    */
   override def hincrby(key: Any, field: Any, value: Int)(implicit format: Format): Option[Long] = withDB {
-    getLongOrZero(key, field) + value <| (x => hset(key, field, x)) |> Some.apply
+    safeAddition(getLongOrZero(key, field), value) <| (x => hset(key, field, x)) |> Some.apply
   }
 
   /**
