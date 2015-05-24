@@ -1,14 +1,17 @@
 package com.github.mogproject.redismock
 
+import org.scalacheck.Gen
 import org.scalatest.FunSpec
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Matchers
+import org.scalatest.prop.GeneratorDrivenPropertyChecks
 
 class MockSetOperationsSpec extends FunSpec
 with Matchers
 with BeforeAndAfterEach
-with BeforeAndAfterAll {
+with BeforeAndAfterAll
+with GeneratorDrivenPropertyChecks {
 
   val r = TestUtil.getRedisClient
 
@@ -322,6 +325,61 @@ with BeforeAndAfterAll {
 
       // if supplied count > size, then whole set is returned
       r.srandmember("set-1", 24).get.toSet.size should equal(8)
+    }
+  }
+
+  //
+  // additional tests
+  //
+  describe("sscan (additional)") {
+    it("should work with non-existent key") {
+      r.sscan("set-1", 0) shouldBe Some((Some(0), Some(List())))
+    }
+    it("should work with empty set") {
+      r.sadd("set-1", "value-1")
+      r.srem("set-1", "value-1")
+
+      forAll(Gen.choose(-100, 100)) { i =>
+        r.sscan("set-1", i) shouldBe Some((Some(0), Some(List())))
+      }
+    }
+    it("should work with set with one element") {
+      r.sadd("set-1", "value-1")
+      r.sscan("set-1", 0) shouldBe Some((Some(0), Some(List(Some("value-1")))))
+
+      // Calling SCAN with a broken, negative, out of range, or otherwise invalid cursor, will result into undefined
+      // behavior but never into a crash.
+      forAll(Gen.choose(-100, 100)) { i =>
+        r.sscan("set-1", i) should (be (Some((Some(0), Some(List())))) or be (Some((Some(0), Some(List(Some("value-1")))))))
+      }
+    }
+    it("should get back to 0 after iteration") {
+      r.sadd("set-1", "value-0", (1 to 100).map(i => s"value-${i}"):_*)
+
+      @annotation.tailrec
+      def f(cursor: Int, sofar: List[List[Option[String]]], count: Int): List[List[Option[String]]] = {
+        if (count <= 0)
+          fail("too many loop count")
+        else if (cursor == 0 && sofar.nonEmpty)
+          sofar
+        else
+          r.sscan("set-1", cursor) match {
+            case Some((Some(x), Some(xs))) => f(x, xs :: sofar, count - 1)
+            case _ => sofar
+          }
+      }
+
+      val result = f(0, Nil, 100)
+      result.flatten should have size 101
+      result.flatten.toSet should have size 101
+      result.size should be <= 11
+    }
+    it("should throw exception with the negative or zero count") {
+      r.sadd("set-1", "value-1")
+      val t1 = the[Exception] thrownBy r.sscan("set-1", 0, "*", 0)
+      t1.getMessage shouldBe "ERR syntax error"
+      val t2 = the[Exception] thrownBy r.sscan("set-1", 0, "*", Int.MinValue)
+      t2.getMessage shouldBe "ERR syntax error"
     }
   }
 }

@@ -411,7 +411,10 @@ with GeneratorDrivenPropertyChecks {
         else if (cursor == 0 && sofar.nonEmpty)
           sofar
         else
-          r.scan(cursor) match {case Some((Some(x), Some(xs))) => f(x, xs :: sofar, count - 1)}
+          r.scan(cursor) match {
+            case Some((Some(x), Some(xs))) => f(x, xs :: sofar, count - 1)
+            case _ => sofar
+          }
       }
 
       val result = f(0, Nil, 100)

@@ -382,9 +382,7 @@ trait MockOperations extends Operations with Storage with GenericOperations {
    * @see http://redis.io/commands/scan
    */
   override def scan[A](cursor: Int, pattern: Any = "*", count: Int = 10)
-                      (implicit format: Format, parse: Parse[A]): Option[(Option[Int], Option[List[Option[A]]])] = {
-    val r = StringUtil.globToRegex(pattern.toString)
-    val xs = currentDB.keys.view.map(_.k).filter(_.parse(Parse.parseStringSafe).matches(r)).toSeq
-    genericScan(xs, cursor, count)
-  }
+                      (implicit format: Format, parse: Parse[A]): Option[(Option[Int], Option[List[Option[A]]])] =
+    genericScan(currentDB.keys.map(_.k), cursor, pattern, count)
+
 }
