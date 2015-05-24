@@ -190,6 +190,22 @@ with GeneratorDrivenPropertyChecks {
     }
   }
 
+  describe("randomkey (additional)") {
+    it("should return None when the key does not exist") {
+      r.randomkey shouldBe None
+    }
+    it("should return the element when it has only one element") {
+      r.set("anshin-1", "")
+      r.randomkey shouldBe Some("anshin-1")
+    }
+    it("should return random element when it has two elements") {
+      r.set("anshin-1", "")
+      r.set("anshin-2", "")
+      val s = Seq.fill(1000)(r.randomkey).toSet
+      s shouldBe Set(Some("anshin-1"), Some("anshin-2"))
+    }
+  }
+
   describe("randkey (additional)") {
     it("should give") {
       r.set("anshin-1", "debasish")
