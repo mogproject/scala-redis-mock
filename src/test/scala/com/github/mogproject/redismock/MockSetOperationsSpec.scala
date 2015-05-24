@@ -352,6 +352,34 @@ with GeneratorDrivenPropertyChecks {
     }
   }
 
+  describe("sdiffstore (additional)") {
+    it("should return diff") {
+      r.sadd("set-1", "foo").get should equal(1)
+      r.sadd("set-1", "bar").get should equal(1)
+      r.sadd("set-1", "baz").get should equal(1)
+
+      r.sadd("set-2", "foo").get should equal(1)
+      r.sadd("set-2", "bat").get should equal(1)
+      r.sadd("set-2", "baz").get should equal(1)
+
+      r.sadd("set-3", "for").get should equal(1)
+      r.sadd("set-3", "bat").get should equal(1)
+      r.sadd("set-3", "bay").get should equal(1)
+
+      r.sdiffstore("set-r", "set-1", "set-2") shouldBe Some(1)
+      r.scard("set-r") shouldBe Some(1)
+      r.sdiffstore("set-s", "set-1", "set-3", "set-1") shouldBe Some(0)
+      r.scard("set-s") shouldBe Some(0)
+    }
+    it("should treat non-existing keys as empty sets") {
+      r.sadd("set-1", "foo").get should equal(1)
+      r.sadd("set-1", "bar").get should equal(1)
+      r.sadd("set-1", "baz").get should equal(1)
+      r.sdiffstore("set-r", "set-1", "set-2") shouldBe Some(3)
+      r.scard("set-r") shouldBe Some(3)
+    }
+  }
+
   describe("srandmember (additional)") {
     val a1 = Some("value-1")
     val a2 = Some("value-2")

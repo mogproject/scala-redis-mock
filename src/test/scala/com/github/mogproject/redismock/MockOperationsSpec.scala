@@ -362,6 +362,15 @@ with GeneratorDrivenPropertyChecks {
       val t2 = the[Exception] thrownBy r.sort("hash-1")
       t2.getMessage shouldBe "WRONGTYPE Operation against a key holding the wrong kind of value"
     }
+    it("should throw exception when sorting string as numeric") {
+      r.lpush("list-1", "value-1")
+      val t1 = the[Exception] thrownBy r.sort("list-1")
+      t1.getMessage shouldBe "ERR One or more scores can't be converted into double"
+
+      r.lpush("list-1", "value-2")
+      val t2 = the[Exception] thrownBy r.sort("list-1")
+      t2.getMessage shouldBe "ERR One or more scores can't be converted into double"
+    }
     it("should work with nosort option") {
       r.lpush("list-1", 1, 23, 4, 567, 8)
       r.sort("list-1", desc = false, alpha = false, by = Some("nosort")) shouldBe Some(List(
@@ -414,7 +423,7 @@ with GeneratorDrivenPropertyChecks {
       // Calling SCAN with a broken, negative, out of range, or otherwise invalid cursor, will result into undefined
       // behavior but never into a crash.
       forAll(Gen.choose(-100, 100)) { i =>
-        r.scan(i) should (be (Some((Some(0), Some(List())))) or be (Some((Some(0), Some(List(Some("anshin-1")))))))
+        r.scan(i) should (be(Some((Some(0), Some(List())))) or be(Some((Some(0), Some(List(Some("anshin-1")))))))
       }
     }
     it("should get back to 0 after iteration") {

@@ -69,7 +69,7 @@ trait MockOperations extends Operations with Storage with GenericOperations {
           case _ => noneGetter(xs)
         }))
 
-    // make it together
+    // put it together
     private def sort = (noSort, alpha) match {
       case (true, _) => data
       case (false, true) => data.sortWith {
@@ -81,7 +81,10 @@ trait MockOperations extends Operations with Storage with GenericOperations {
           case (Some(x), Some(y)) => x < y
         }
       }
-      case (false, false) => data.sortBy(lookup(_).map(sortByNumber))
+      case (false, false) => {
+        val sortKeys = data.map(lookup(_).map(sortByNumber))
+        (data zip sortKeys).sortBy(_._2).unzip._1
+      }
     }
 
     private def get(xs: Seq[Bytes]): List[Option[A]] = xs.toList.flatMap(getter)

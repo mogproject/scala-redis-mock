@@ -153,7 +153,7 @@ trait MockStringOperations
    * @see http://redis.io/commands/incrby
    */
   override def incrby(key: Any, increment: Int)(implicit format: Format): Option[Long] = withDB {
-    getLongOrZero(key) + increment <| { x => set(key, x) } |> Some.apply
+    safeAddition(getLongOrZero(key), increment) <| { x => set(key, x) } |> Some.apply
   }
 
   /**

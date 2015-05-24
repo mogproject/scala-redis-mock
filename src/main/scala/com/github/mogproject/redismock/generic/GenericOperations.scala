@@ -8,13 +8,17 @@ import com.redis.{Millis, Seconds, SecondsOrMillis, Redis}
 import com.redis.serialization.{Parse, Format}
 
 import scala.reflect.ClassTag
-import scala.util.Random
+import scala.util.{Try, Random}
 
 
 trait GenericOperations extends Storage {
   self: Redis =>
 
   lazy val random = new Random(12345L)
+
+  protected def safeAddition(a: Long, b: Long): Long =
+    Some(BigInt(a) + BigInt(b)).withFilter(_.isValidLong).map(_.toLong)
+      .getOrElse(throw new Exception("ERR increment or decrement would overflow"))
 
   protected def setRaw[A <: Value](key: Any, value: A)(implicit format: Format): Unit =
     currentDB.update(Key(key), value)
