@@ -21,7 +21,7 @@ with MockSortedSetOperations
 with MockHashOperations
 with MockEvalOperations
 //with MockPubOperations
-//with MockHyperLogLogOperations
+with MockHyperLogLogOperations
 {
 
 }
