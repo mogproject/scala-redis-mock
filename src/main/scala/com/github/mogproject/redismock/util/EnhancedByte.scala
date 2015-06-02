@@ -9,7 +9,9 @@ package com.github.mogproject.redismock.util
 class EnhancedByte(x: Byte) {
 
   /** Convert to unsigned integer */
-  def toUnsignedInt: Int = (x.toInt + 256) % 256
+  def toUnsignedInt: Int = x & 0xff
+
+  def toUnsignedLong: Long = toUnsignedInt.toLong
 
   /** Count the number of 1-bit */
   def popCount: Int = {
