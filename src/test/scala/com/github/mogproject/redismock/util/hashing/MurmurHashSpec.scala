@@ -1,6 +1,6 @@
-package com.github.mogproject.redismock.util
+package com.github.mogproject.redismock.util.hashing
 
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Matchers, FunSpec}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSpec, Matchers}
 
 
 class MurmurHashSpec extends FunSpec with Matchers with BeforeAndAfterEach with BeforeAndAfterAll {

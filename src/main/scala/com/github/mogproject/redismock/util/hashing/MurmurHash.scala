@@ -1,4 +1,4 @@
-package com.github.mogproject.redismock.util
+package com.github.mogproject.redismock.util.hashing
 
 import com.github.mogproject.redismock.util.Implicits._
 
