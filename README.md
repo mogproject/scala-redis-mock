@@ -62,7 +62,7 @@ redis-cli shutdown
 |[x]|[x]|[ ]|Sets|
 |[x]|[x]|[ ]|Sorted Sets|
 |[x]|[x]|[ ]|Hashes|
-|[ ]|[ ]|[ ]|HyperLogLog|
+|[x]|[x]|[ ]|HyperLogLog|
 |[x]|[x]|[ ]|scan, sscan, hscan, zscan|
 |[x]|[x]|[ ]|sort, sortNStore|
 
