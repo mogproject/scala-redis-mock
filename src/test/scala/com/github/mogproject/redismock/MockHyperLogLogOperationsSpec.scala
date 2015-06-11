@@ -1,12 +1,14 @@
 package com.github.mogproject.redismock
 
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSpec, Matchers}
+import org.scalatest.prop.GeneratorDrivenPropertyChecks
 
 
 class MockHyperLogLogOperationsSpec extends FunSpec
 with Matchers
 with BeforeAndAfterEach
-with BeforeAndAfterAll {
+with BeforeAndAfterAll
+with GeneratorDrivenPropertyChecks {
 
   val r = TestUtil.getRedisClient
 
@@ -76,7 +78,7 @@ with BeforeAndAfterAll {
         'H', 'Y', 'L', 'L', // magic
         1, // dense or sparse
         0, 0, 0, // not used
-        0, 0, 0, 0, 0, 0, 0, 0x80,  // cached cardinality, little endian
+        0, 0, 0, 0, 0, 0, 0, 0x80, // cached cardinality, little endian
         0x51, 0x7c, 0x88, 0x5e, 0xc1, 0x80, 0x42, 0x62, 0x88, 0x4d, 0x5a).map(_.toByte))
     }
   }
