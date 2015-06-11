@@ -57,7 +57,7 @@ class MockStringOperationsSpec extends FunSpec with Matchers with BeforeAndAfter
         case Some(s: String) => s should equal("mor")
         case None => fail("should return mor")
       }
-      Thread.sleep(6000)
+      Thread.sleep(6500)
       r.get("amit-1") should equal(None)
       r.del("amit-1")
     }
