@@ -9,7 +9,8 @@ import scala.util.Try
 
 case class HyperLogLog(isDense: Boolean = false,
                        registers: Seq[Int] = Seq.fill(HyperLogLog.m)(0),
-                       cache: Long = 0x8000000000000000L) {
+                       isDirty: Boolean = false,
+                       cache: Long = HyperLogLog.cacheInvalid) {
 
   import HyperLogLog.{m, rankTable}
 
@@ -31,21 +32,28 @@ case class HyperLogLog(isDense: Boolean = false,
       (this, false)
     } else {
       val toDense = isDense || rank > 32 || sparseBytes.length > 3000
-      (HyperLogLog(toDense, registers.updated(index, math.max(registers(index), rank))), true)
+      (HyperLogLog(toDense, registers.updated(index, math.max(registers(index), rank)), isDirty = true), true)
     }
   }
 
-  def count: (HyperLogLog, Long) = {
-    val alpha = 0.7213 / (1 + 1.079 / m)
-    val c = (1 / registers.map(rankTable).sum * alpha * alpha match {
-      case e if e < 2.5 * m && numZeros != 0 => m * math.log(m.toDouble / numZeros)
-      case e if m == 16384 && e < 72000 =>
-        val bias = 5.9119 * 1.0e-18 * (e * e * e * e) - 1.4253 * 1.0e-12 * (e * e * e) + 1.2940 * 1.0e-7 * (e * e) -
-          5.2921 * 1.0e-3 * e + 83.3216
-        e - e * (bias / 100)
-      case e => e
-    }).toLong
-    (copy(cache = c), c)
+  /**
+   * Estimate the cardinality
+   * @return cardinality
+   */
+  def count: Long = {
+    if (cache == HyperLogLog.cacheInvalid || isDirty) {
+      val alpha = 0.7213 / (1 + 1.079 / m)
+      (1 / registers.map(rankTable).sum * alpha * alpha match {
+        case e if e < 2.5 * m && numZeros != 0 => m * math.log(m.toDouble / numZeros)
+        case e if m == 16384 && e < 72000 =>
+          val bias = 5.9119 * 1.0e-18 * (e * e * e * e) - 1.4253 * 1.0e-12 * (e * e * e) + 1.2940 * 1.0e-7 * (e * e) -
+            5.2921 * 1.0e-3 * e + 83.3216
+          e - e * (bias / 100)
+        case e => e
+      }).toLong
+    } else {
+      cache
+    }
   }
 
   def merge(that: HyperLogLog): HyperLogLog = {
@@ -56,6 +64,8 @@ case class HyperLogLog(isDense: Boolean = false,
   }
 
   def toBytes: Bytes = header ++ (if (isDense) denseBytes else sparseBytes)
+
+  def setCache(count: Long): HyperLogLog = copy(isDirty = false, cache = count)
 
   private lazy val sparseBytes: Bytes = {
     import HyperLogLog.SparseEncoding._
@@ -73,7 +83,7 @@ case class HyperLogLog(isDense: Boolean = false,
   }
 
   private lazy val denseBytes: Bytes = {
-    Bytes(Seq.tabulate(m * 3 / 4){
+    Bytes(Seq.tabulate(m * 3 / 4) {
       i => ((i % 3, i / 3 * 4) match {
         case (0, j) => registers(j) | ((registers(j + 1) & 0x03) << 6)
         case (1, j) => (registers(j + 1) >>> 2) | ((registers(j + 2) & 0x0f) << 4)
@@ -89,6 +99,8 @@ object HyperLogLog {
   val m = 1 << 14
 
   val rankTable = Seq.iterate(1.0, 64)(_ / 2)
+
+  val cacheInvalid: Long = 0x8000000000000000L
 
   /**
    * Create HyperLogLog from raw bytes
@@ -127,7 +139,7 @@ object HyperLogLog {
    * @param registerBytes register bytes
    * @return HyperLogLog instance wrapped by Try
    */
-  def parseSparseBytes(registerBytes: Bytes): Try[HyperLogLog] = Try {
+  private def parseSparseBytes(registerBytes: Bytes): Try[HyperLogLog] = Try {
     @tailrec
     def f(sofar: Seq[Int], xs: List[Byte]): Seq[Int] = xs match {
       case x :: ys if (x & 0xc0) == 0 => f(sofar ++ SparseEncoding.decodeZero(x), ys) // ZERO
@@ -181,4 +193,5 @@ object HyperLogLog {
 
     def decodeVal(x: Byte): Seq[Int] = Seq.fill(1 + (x & 0x03))(1 + ((x & 0x7c) >>> 2))
   }
+
 }
