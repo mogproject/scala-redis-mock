@@ -55,10 +55,13 @@ trait MockHyperLogLogOperations extends HyperLogLogOperations with MockOperation
    */
   override def pfcount(keys: Any*): Long = withDB {
     // merge all keys
-    val (hll, count) = keys.toList.map(getAsHLL).flatten.foldLeft(HyperLogLog())((a, h) => a.merge(h)).count
+    val count = keys.toList.map(getAsHLL).flatten.foldLeft(HyperLogLog())((a, h) => a.merge(h)).count
 
-    // if the key is just one, update its cache value
-    if (keys.length == 1) setRaw(keys.head, StringValue(hll.toBytes))
+    // if the key is just one and exists, update its cache value
+    if (keys.length == 1) {
+      val k = keys.head
+      getAsHLL(k).foreach(h => setRaw(k, StringValue(h.setCache(count).toBytes)))
+    }
     count
   }
 
