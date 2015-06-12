@@ -20,7 +20,7 @@ with MockSetOperations
 with MockSortedSetOperations
 with MockHashOperations
 with MockEvalOperations
-//with MockPubOperations
+with MockPubOperations
 with MockHyperLogLogOperations
 {
 

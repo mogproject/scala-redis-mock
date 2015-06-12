@@ -6,10 +6,17 @@
 # scala-redis-mock
 Pure scala mock for [scala-redis](https://github.com/debasishg/scala-redis)
 
-> **Note**: This library is under development!
+## Versions
 
+Only these versions are tested.
 
-## Clone this repository
+|scala-redis-mock|scala-redis|redis-server|
+|:-:|:-:|:-:|
+|0.1.0|2.15|2.8.19|
+
+## Getting Started
+
+#### Clone this repository
 
 ```
 $ cd your_work_dir
@@ -17,7 +24,7 @@ $ git clone git@github.com:mogproject/scala-redis-mock.git
 $ cd scala-redis-mock
 ```
 
-## Try it out (without real Redis)!
+#### Try it out (without real Redis)!
 
 ```
 $ sbt console
@@ -28,7 +35,6 @@ res0: Boolean = true
 scala> r.get("foo")
 res1: Option[String] = Some(bar)
 ```
-
 
 ## Testing
 
@@ -49,29 +55,11 @@ USE_REAL_REDIS=yes sbt test
 redis-cli shutdown
 ```
 
+## Supported Operations
 
-## To be implemented
+- `Connection`, `Keys`, `String`, `Lists`, `Sets`, `Sorted Sets`, `Hashes`, `HyperLogLog`
 
-#### Commands
+The following features are not supported.
 
-|started|feature impl|complete|feature|
-|:-:|:-:|:-:|:--|
-|[x]|[x]|[ ]|Keys|
-|[x]|[x]|[ ]|Strings|
-|[x]|[x]|[ ]|Lists|
-|[x]|[x]|[ ]|Sets|
-|[x]|[x]|[ ]|Sorted Sets|
-|[x]|[x]|[ ]|Hashes|
-|[x]|[x]|[ ]|HyperLogLog|
-|[x]|[x]|[ ]|scan, sscan, hscan, zscan|
-|[x]|[x]|[ ]|sort, sortNStore|
+- `Server`, `Scripting`, `Pub/Sub`, `Transactions`, `Cluster`
 
-#### Features
-|started|feature impl|complete|feature|
-|:-:|:-:|:-:|:--|
-|[x]|[x]|[ ]|Connection|
-|   |   |   |~~Server~~ Not supported|
-|   |   |   |~~Scripting~~ Not supported|
-|[ ]|[ ]|[ ]|Pub/Sub|
-|   |   |   |~~Transactions~~ Not supported|
-|   |   |   |~~Cluster~~ Not supported|
