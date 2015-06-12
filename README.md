@@ -13,6 +13,7 @@ Only these versions are tested.
 |scala-redis-mock|scala-redis|redis-server|
 |:-:|:-:|:-:|
 |0.1.0|2.15|2.8.19|
+|N/A|3.0|2.8.19|
 
 ## Getting Started
 
