@@ -83,6 +83,10 @@ with GeneratorDrivenPropertyChecks {
       h1.count shouldBe 34910377
       h2.count shouldBe 35748227044L
     }
+    it("should read value from cache") {
+      val hll = HyperLogLog(isDense = false, Seq.fill(HyperLogLog.m - 2)(0) ++ Seq.fill(2)(1), false, 2)
+      hll.count shouldBe 2
+    }
   }
 }
 
