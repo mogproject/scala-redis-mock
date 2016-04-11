@@ -227,7 +227,8 @@ trait MockOperations extends Operations with Storage with GenericOperations {
    *
    * @see http://redis.io/commands/expire
    */
-  override def expire(key: Any, ttl: Int)(implicit format: Format): Boolean = pexpire(key, ttl * 1000)
+  override def expire(key: Any, ttl: Int)(implicit format: Format): Boolean =
+    currentDB.updateTTL(Key(key), ttl * 1000L)
 
   /**
    * This command works exactly like EXPIRE but the time to live of the key is specified in milliseconds instead of

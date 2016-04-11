@@ -217,6 +217,20 @@ with GeneratorDrivenPropertyChecks {
     }
   }
 
+  describe("expire (additional)") {
+    it("should not overflow") {
+      r.set("anshin-4", "debasish")
+      r.expire("anshin-4", 2147484) should equal(true)
+      r.ttl("anshin-4").get should (be >= 2147483L and be <= 2147484L)
+      r.set("anshin-5", "debasish")
+      r.expire("anshin-5", 10000000) should equal(true)
+      r.ttl("anshin-5").get should (be >= 9999999L and be <= 10000000L)
+      r.set("anshin-6", "debasish")
+      r.expire("anshin-6", Int.MaxValue) should equal(true)
+      r.ttl("anshin-6").get should (be >= (Int.MaxValue - 1L) and be <= Int.MaxValue.toLong)
+    }
+  }
+
   describe("expireat (additional)") {
     it("should give") {
       r.set("anshin-1", "debasish")
